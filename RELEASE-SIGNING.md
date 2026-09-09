@@ -47,8 +47,9 @@ rejection. Old debug-device evidence does not establish a release end-to-end pas
   no debuggable flag. The APK contains the temporary Render HTTPS origin.
 - APK SHA-256: `df1ca2106abb1da3096906d111441b07122ae45917df68ada30eb00125271aee`.
 
-These changes are prepared locally. The hosted demo has not been redeployed or
-switched to the release identity by this change. A physical release-device round
-trip and rejection of the debug package remain rollout checks.
+The updated server was deployed to Render on 2026-09-09 from commit `a16670e`.
+It retains `render-debug` identity; the mandatory locked/VERIFIED gate is now live.
+The release signer has not been activated. A physical release-device round trip
+and rejection of the debug package remain release rollout checks.
 
 Implementation assistance: OpenAI Codex.

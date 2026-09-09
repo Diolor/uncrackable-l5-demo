@@ -82,3 +82,16 @@ package with its separately configured signer digest. See
 [release signing](../RELEASE-SIGNING.md) for local custody and the rollout procedure.
 The keystore and passwords must never be sent to Render. A source/build check is
 not evidence that the hosted service has been upgraded or a release device test passed.
+
+## Mandatory boot gate deployed — 2026-09-09
+
+- Deployment `dep-dagrj9142hec73epdq3g`, source `a16670e`, live at 19:59:30 UTC.
+- The new hardware-enforced locked + VERIFIED requirement applies to every flag.
+  Debug package/signer configuration remains active; release identity is prepared
+  but has not been selected in the hosted environment.
+- Container build completed successfully with server tests. After activation,
+  HTTPS health and challenge returned HTTP 200; challenge was 76 characters with
+  `Cache-Control: no-store`. Malformed attestation returned HTTP 403
+  `attestation_invalid`, with no flag.
+- Boot-state rejection is covered by the server regression suite. This deployment
+  check is not a new physical-device or emulator attestation test.
