@@ -24,21 +24,22 @@ These properties are the crackme. A change that violates one silently ruins it.
 1. **No flag values in the shipped APK.** No plaintext or encrypted flag payload is
    bundled in code, resources, assets or native libraries. The response model may declare
    `flag`; downloaded flags are processed at runtime and persisted. Keep flags out of UI
-   and logs. The plan proposes AES-GCM storage with a separate persistent Android Keystore
+   and logs. Use AES-GCM storage with a separate persistent Android Keystore
    key; this does not prevent runtime extraction.
 2. **TLS always fails closed.** No intentional retry downgrade, permissive trust manager,
    disabled hostname verification or pin removal. Repeated attempts preserve every check.
-3. **Backend verification is strict except for the documented revocation omission.**
-   No weak randomness or rate-limit hole. Do not claim the backend is fully correct or
-   that every intended attack is client-side while retaining the Flag 2 omission.
-4. **Attestation freshness stays closed.** Server-issued single-use nonce throughout;
-   never hardcode or omit `setAttestationChallenge`. This is what defeats a two-device relay.
-5. **Anti-repackaging via `attestationApplicationId`.** The server checks package name +
-   signer cert SHA-256. A re-signed APK must be rejected. Never relax step 8.
-6. **Intentional omission:** the backend deliberately does **not** query
-   `android.googleapis.com/attestation/status` (no revocation check). This keeps the
-   keybox route to Flag 2 open and demonstrates the failure `MASTG-BEST-0x01` warns about.
-   It must be documented as intentional in README/SOLUTION/website or reviewers file it as a bug.
+3. **Strict backend verification.** No deliberately weak randomness, replay handling,
+   certificate validation or revocation bypass. Consume a challenge atomically only after
+   all verification succeeds and immediately before issuing the flag.
+4. **Freshness is required.** Server-issued single-use challenge, bound to attestation and
+   proof of possession. This is not continuous process integrity or a universal anti-relay proof.
+5. **Anti-repackaging via `attestationApplicationId`.** Check the sole package and exact
+   expected signer set under the documented platform and attestation trust assumptions.
+6. **Revocation is mandatory for both tiers.** Check the Google attestation status feed,
+   reject every listed serial, and fail closed when no fresh valid snapshot is available.
+7. **Flag 2 is open research.** No demonstrated bypass is required for release. Investigate
+   attestation-to-use timing and post-attestation storage access without planting a weakness.
+   Never advertise a proof of uncrackability or promise a leaked-keybox solution.
 
 ## Immutable-forever values (attested; cannot change after release)
 
@@ -46,7 +47,7 @@ These properties are the crackme. A change that violates one silently ruins it.
 - `minSdk = 28`, `targetSdk`/`compileSdk = 36`
 - Signing key: **never rotate** (v3.1 rotation changes `attestationApplicationId`)
 - Pinned roots: GTS Root R1–R4 + ISRG Root X1/X2 (roots only, OR-ed; never leaf/intermediate)
-- Backend hostname (see blocking decisions below)
+- Backend hostname (see release decisions below)
 
 ## Layout (target)
 
@@ -56,11 +57,11 @@ Uncrackable/
   server/       Kotlin/Ktor backend (Gradle)
   infra/        gcloud deploy script or Terraform, firebase.json
   fixtures/     recorded attestation chains for server tests
-  README.md     brief, hard requirements, flag SHA-256s, intentional-omission notes
+  README.md     brief, hard requirements, flag SHA-256s, security assumptions and research status
   SOLUTION.md   the writeup required by the contributing terms
 ```
 
-Not yet a git repo — `git init` before first commit.
+Git repository initialized.
 
 - Source → `github.com/OWASP/mas-crackmes` at `Android/Level5/`. Committed: pins, backend
   URL, package name, signer digest. **Never committed:** keystore, `CHALLENGE_HMAC_KEY`, flags.
@@ -71,7 +72,8 @@ Not yet a git repo — `git init` before first commit.
 The APK is immutable once signed, and its pins can only be frozen once the live TLS chain
 exists. Build in this order:
 
-1. **Server** (Ktor) with the verification pipeline + fixture-based unit tests.
+1. **Local server** (Ktor) with verification, revocation, challenge/replay handling and tests.
+   Then add a minimal physical-device attestation client before production deployment.
 2. **Deploy** to Cloud Run; wire Firebase Hosting `/v1/**` rewrite.
 3. **Custom domain**: fix CAA records first (must allow `pki.goog` + `letsencrypt.org`),
    add domain in Firebase console, wait for managed cert. Confirm with
@@ -83,7 +85,7 @@ exists. Build in this order:
 Firebase Hosting is **only** a reverse proxy in front of Cloud Run (the `/v1/**` rewrite)
 plus a static status `index.html`. It does **not** perform authentication. Auth is hardware
 Key Attestation verified by the Ktor backend. Firebase App Check is deliberately **not** used
-as a control (a sideloaded APK can never get `PLAY_RECOGNIZED`).
+as a control (the app is not published on Play; direct attestation gives the required explicit policy).
 
 Firebase project: `uncrackable-l5` (console.firebase.google.com/project/uncrackable-l5).
 
@@ -93,9 +95,9 @@ Firebase project: `uncrackable-l5` (console.firebase.google.com/project/uncracka
 `ATTESTATION_ROOTS` (PEM bundle). Use a dedicated runtime SA with `secretAccessor`, not the
 default compute SA.
 
-## Blocking decisions before the APK ships
+## Release decisions (not blockers for local implementation)
 
-Tracked in the plan (section "Decide before the APK ships"): OWASP-controlled hostname vs.
+Tracked in the plan (section "Release decisions"): OWASP-controlled hostname vs.
 personal `crackme.lorenzos.com`, GCP project/billing ownership transfer to OWASP, signing
 keystore custody (≥2 custodians), MAS-team contact per
 `docs/contributing/6_Add_a_Crackme.md`, and real MASTG ID allocation.

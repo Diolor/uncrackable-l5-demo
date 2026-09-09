@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">UnCrackable L5</string>
+    <string name="brief">This app has no flag inside it. The flag is issued by a server, over a pinned TLS channel, only to a fresh hardware-attested proof from the genuine, correctly-signed build. Two flags: tier 1 for a hardware-attested device, tier 2 additionally requires a locked bootloader with verified boot. Extract the flag.</string>
+    <string name="attest">ATTEST</string>
+
+    <!-- Status line. The flag is never rendered in any state. -->
+    <string name="status_idle">Connect to the internet to obtain the flag.</string>
+    <string name="status_in_flight">Attesting…</string>
+    <string name="status_no_connection">No connection to the server.</string>
+    <string name="status_untrusted">Signing authority cannot be trusted.</string>
+    <string name="status_app_integrity">App signature is not verified.</string>
+    <string name="status_no_hardware">This device has no hardware-backed attestation.</string>
+    <string name="status_expired">Attestation expired. Try again.</string>
+    <string name="status_invalid">Attestation could not be verified.</string>
+    <string name="status_unavailable">Attestation service is unavailable. Try again later.</string>
+    <string name="status_tier1">Accepted — this device does not have a verified bootloader.</string>
+    <string name="status_tier2">Accepted — device and app fully verified.</string>
+</resources>

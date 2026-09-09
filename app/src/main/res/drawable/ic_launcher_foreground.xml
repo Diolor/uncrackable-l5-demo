@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- A padlock outline: the flag is behind attestation, not in the APK. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,30a12,12 0,0 0,-12 12v6h-4a4,4 0,0 0,-4 4v22a4,4 0,0 0,4 4h32a4,4 0,0 0,4 -4V52a4,4 0,0 0,-4 -4h-4v-6a12,12 0,0 0,-12 -12zM54,36a6,6 0,0 1,6 6v6H48v-6a6,6 0,0 1,6 -6zM54,56a4,4 0,0 1,2 7.46V68h-4v-4.54A4,4 0,0 1,54 56z" />
+</vector>
