@@ -3,6 +3,14 @@
 Kotlin, no AndroidX, no Firebase/GMS SDKs. One activity, one button, one status line.
 The flag is never rendered, logged, copied or shared; success only confirms a tier.
 
+Persistent AES keys must be hardware-backed on creation and every load. API 31+
+accepts only StrongBox or TEE; API 28–30 requires `KeyInfo.isInsideSecureHardware`.
+Rejected keys and their records are discarded, and metadata failures prevent key use.
+Storage failure is reported instead of acceptance. Physical-device validation of this
+AES-key policy remains required; JVM tests do not exercise Android Keystore.
+
+Implementation assistance for the AES-key policy: OpenAI Codex.
+
 | File | Role |
 |---|---|
 | `Attestation.kt` | Per-attempt EC P-256 key in AndroidKeyStore attested against the server challenge (StrongBox first, TEE fallback), chain export, proof of possession, key deleted in `finally`. |

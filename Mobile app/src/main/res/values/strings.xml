@@ -16,4 +16,5 @@
     <string name="status_unavailable">Attestation service is unavailable. Try again later.</string>
     <string name="status_device_integrity">Device bootloader is not locked and verified.</string>
     <string name="status_tier2">Accepted — device and app fully verified.</string>
+    <string name="status_storage_failed">The flag could not be stored securely. Try again.</string>
 </resources>

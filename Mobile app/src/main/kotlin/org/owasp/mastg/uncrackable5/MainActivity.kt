@@ -48,7 +48,13 @@ class MainActivity : Activity() {
                 val outcome = Backend(BuildConfig.BASE_URL, Attestation(context)).attest()
                 if (outcome is AttestOutcome.Accepted) {
                     // Processed in memory, then persisted encrypted. store() zeroes the plaintext.
-                    runCatching { FlagStore(context).store(outcome.tier, outcome.flag) }
+                    try {
+                        FlagStore(context).store(outcome.tier, outcome.flag)
+                    } catch (_: Exception) {
+                        throw FlagStorageException()
+                    } finally {
+                        outcome.flag.fill(0)
+                    }
                 }
                 Status.forOutcome(outcome)
             } catch (e: Throwable) {

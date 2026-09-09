@@ -131,8 +131,13 @@ written to logs, clipboard, analytics, HTTP caches, or plaintext temporary files
 **Storage design:** encrypt downloaded flags with
 `AES/GCM/NoPadding`, using a persistent per-installation AES-256 key generated in
 `AndroidKeyStore`. This is a separate key from the per-attempt attestation signing key,
-which is still deleted after each attempt. Prefer hardware-backed storage and verify
-its security level on supported test devices; never substitute a bundled/exported key.
+which is still deleted after each attempt. Require hardware-backed storage for both new
+and existing AES keys: accept only StrongBox or Trusted Environment from `KeyInfo` on
+API 31+, and require `isInsideSecureHardware` on API 28–30. Reject software or unknown
+levels without encrypting or decrypting; discard rejected keys and their cached records.
+Failure to inspect key metadata fails closed. Never substitute a bundled/exported key.
+Storage failures show a secure-storage failure status instead of acceptance.
+Verify the actual AES key security level and rejection behavior on physical devices.
 Use a new provider-generated IV for every encryption under the same key and a 128-bit
 authentication tag. Store a version, IV, and ciphertext/tag in app-private
 `noBackupFilesDir`; bind the tier and format version as authenticated additional data.

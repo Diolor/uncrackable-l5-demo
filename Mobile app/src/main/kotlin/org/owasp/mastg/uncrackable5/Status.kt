@@ -8,6 +8,8 @@ import java.security.cert.CertificateException
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLPeerUnverifiedException
 
+class FlagStorageException : Exception()
+
 /**
  * Maps every attempt outcome to exactly one of the documented status strings. The mapping is
  * deliberately instructive: each failure names the control that rejected the attempt. No HTTP
@@ -28,6 +30,7 @@ object Status {
 
     /** Client-side failure mapping. A trust or pin failure is detectable before any request is served. */
     fun forFailure(failure: Throwable): Int = when {
+        failure is FlagStorageException -> R.string.status_storage_failed
         // OkHttp's CertificatePinner rejected a chain the platform trusted (e.g. a system-installed proxy CA).
         failure is SSLPeerUnverifiedException -> R.string.status_untrusted
         // The framework's NetworkSecurityTrustManager rejected the chain (unknown or user-installed CA).

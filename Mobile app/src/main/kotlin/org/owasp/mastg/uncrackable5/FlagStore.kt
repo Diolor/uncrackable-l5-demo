@@ -2,7 +2,9 @@ package org.owasp.mastg.uncrackable5
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyInfo
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
@@ -13,6 +15,7 @@ import java.security.ProviderException
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
 
 /**
@@ -74,8 +77,8 @@ class FlagStore(context: Context) {
         if (!target.isFile) return null
         val record = runCatching { target.readBytes() }.getOrNull()?.let(FlagRecord::decode)
         if (record == null || record.tier != tier) { target.delete(); return null }
-        val key = key(create = false) ?: run { target.delete(); return null }
         return try {
+            val key = key(create = false) ?: run { target.delete(); return null }
             Cipher.getInstance(TRANSFORMATION).run {
                 init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(FlagRecord.TAG_BYTES * 8, record.iv))
                 updateAAD(record.aad())
@@ -96,18 +99,41 @@ class FlagStore(context: Context) {
 
     private fun key(create: Boolean): SecretKey? {
         val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-        (keyStore.getKey(ALIAS, null) as? SecretKey)?.let { return it }
+        (keyStore.getKey(ALIAS, null) as? SecretKey)?.let { return requireHardware(it, keyStore) }
         if (!create) return null
         if (hasStrongBox) {
             try {
-                return generate(strongBox = true)
+                return requireHardware(generate(strongBox = true), keyStore)
             } catch (e: StrongBoxUnavailableException) {
                 runCatching { keyStore.deleteEntry(ALIAS) }
             } catch (e: ProviderException) {
                 runCatching { keyStore.deleteEntry(ALIAS) }
             }
         }
-        return generate(strongBox = false)
+        return requireHardware(generate(strongBox = false), keyStore)
+    }
+
+    /** Check this AES key itself, including when loading an existing installation's key. */
+    @Suppress("DEPRECATION")
+    private fun requireHardware(key: SecretKey, keyStore: KeyStore): SecretKey {
+        val info = SecretKeyFactory.getInstance(key.algorithm, ANDROID_KEYSTORE)
+            .getKeySpec(key, KeyInfo::class.java) as KeyInfo
+        val hardware = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            info.securityLevel == KeyProperties.SECURITY_LEVEL_STRONGBOX ||
+                info.securityLevel == KeyProperties.SECURITY_LEVEL_TRUSTED_ENVIRONMENT
+        } else {
+            // API 28–30 cannot distinguish TEE from StrongBox, but can require secure hardware.
+            info.isInsideSecureHardware
+        }
+        if (!hardware) {
+            keyStore.deleteEntry(ALIAS)
+            for (tier in 1..2) {
+                file(tier).delete()
+                File(dir, file(tier).name + ".tmp").delete()
+            }
+            throw GeneralSecurityException("Hardware-backed flag storage required")
+        }
+        return key
     }
 
     private fun generate(strongBox: Boolean): SecretKey {
