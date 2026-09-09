@@ -53,7 +53,7 @@ These properties are the crackme. A change that violates one silently ruins it.
 
 ```
 Uncrackable/
-  app/          Kotlin Android client (Gradle)
+  Mobile app/          Kotlin Android client (Gradle)
   server/       Kotlin/Ktor backend (Gradle)
   infra/        gcloud deploy script or Terraform, firebase.json
   fixtures/     recorded attestation chains for server tests

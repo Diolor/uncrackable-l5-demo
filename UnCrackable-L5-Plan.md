@@ -276,7 +276,7 @@ Firebase Hosting rewrite `{"source":"/v1/**","run":{"serviceId":"crackme-l5","re
 
   ```
   Uncrackable/
-    app/          Kotlin Android client (Gradle)
+    Mobile app/          Kotlin Android client (Gradle)
     server/       Kotlin/Ktor backend (Gradle)
     infra/        gcloud deploy script or Terraform, firebase.json
     fixtures/     recorded attestation chains for the server tests
@@ -365,18 +365,24 @@ strict Android verifier adapter, bounded revocation cache, atomic replay-store i
 and Ktor route composition. Tests use signed synthetic chains and a test-only in-memory
 replay store. The pinned upstream source and license are in `third_party/`.
 
-The Android client in `app/` implements the plan's client section: per-attempt attested
+The Android client in `Mobile app/` implements the plan's client section: per-attempt attested
 P-256 key with StrongBox-then-TEE fallback, root-only `CertificatePinner` over
 `RESTRICTED_TLS` with a system-anchor `network_security_config`, bounded protocol client
 with the documented error-to-status mapping, AES-256-GCM flag records under a persistent
 Keystore key (tier bound as AAD, atomic replace in `noBackupFilesDir`), and the one-screen
 UI. The release manifest was audited: single `INTERNET` permission, one exported activity
-with only MAIN/LAUNCHER, `allowBackup=false`, no `debuggable`. Not yet done on the client:
-physical-device validation, recorded real chains, the signing keystore, and the final
-hostname (currently the plan's placeholder in `app/build.gradle.kts`).
+with only MAIN/LAUNCHER, `allowBackup=false`, no `debuggable`. Physical-device validation was
+completed on 2026-09-09 (OnePlus 9 Pro, Android 14, TEE, locked, verified boot: tier 2
+accepted; replay, tampered proof and foreign-challenge requests rejected; the first
+revocation fetch exposed and fixed a CDN `Age` handling bug that failed closed on a
+valid feed). The accepted chain is recorded in `fixtures/`. Not yet done on the client:
+the signing keystore and the final hostname (currently the plan's placeholder in
+`Mobile app/build.gradle.kts`).
 
-This is not a deployable production service yet. Remaining engineering work: Firestore
-replay adapter, runtime configuration/secret loading, network engine/production entry point,
-ingress-aware distributed abuse limits, container/deployment setup, and physical-device
-client validation/recorded fixtures. No production flags, signing keys, trust configuration or cloud
+The production runtime foundation now includes a Firestore create-if-absent replay
+adapter, strict environment configuration for injected secrets, a Netty entry point
+and a non-root distroless container recipe. This is not ready for public deployment:
+ingress-aware distributed abuse limits, deployment setup, structured outcome logging,
+Firestore integration validation and physical-device client validation/recorded
+fixtures remain. No production flags, signing keys, trust configuration or cloud
 resources have been created. See `server/README.md` for the runnable local test milestone.

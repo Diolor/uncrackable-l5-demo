@@ -30,7 +30,12 @@ class ProtocolException(message: String) : IOException(message)
 class Backend(baseUrl: String, private val attestation: Attestation) {
     private val base: HttpUrl = baseUrl.toHttpUrl()
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectionSpecs(listOf(ConnectionSpec.RESTRICTED_TLS))
+        // Release: RESTRICTED_TLS only, so a plaintext URL cannot even be dialled. Debug builds may
+        // additionally speak cleartext to a local integration server (see debug network_security_config).
+        .connectionSpecs(
+            if (BuildConfig.DEBUG && base.scheme == "http") listOf(ConnectionSpec.RESTRICTED_TLS, ConnectionSpec.CLEARTEXT)
+            else listOf(ConnectionSpec.RESTRICTED_TLS),
+        )
         .certificatePinner(Pins.pinner(base.host))
         .callTimeout(15, TimeUnit.SECONDS)
         .connectTimeout(10, TimeUnit.SECONDS)

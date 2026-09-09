@@ -18,7 +18,7 @@ import java.util.concurrent.CancellationException
 private const val MAX_BODY = 40 * 1024
 private val protocolJson = Json { ignoreUnknownKeys = false; explicitNulls = false }
 
-/** Dependency-injected local milestone. Production composition requires distributed replay and ingress limits. */
+/** Injectable routes; public deployment additionally requires distributed ingress limits. */
 fun Application.crackme(service: AttestationService) {
     install(ContentNegotiation) { json(protocolJson) }
     install(StatusPages) {

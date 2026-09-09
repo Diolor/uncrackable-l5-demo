@@ -14,6 +14,9 @@ The flag is never rendered, logged, copied or shared; success only confirms a ti
 
 ## Build
 
+Run these commands from the repository root. The Android project lives in
+`Mobile app/` and retains the Gradle module name `:app`; the backend lives in `server/`.
+
 ```sh
 ./gradlew :app:testDebugUnitTest :app:assembleRelease
 ```
@@ -29,8 +32,13 @@ backend URL from a Gradle property, and its `network_security_config` overlay pe
 cleartext to loopback / `10.0.2.2` / `*.local` so a local Ktor server can be used:
 
 ```sh
-./gradlew :app:installDebug -PcrackmeBaseUrl=http://10.0.2.2:8080
+adb reverse tcp:8080 tcp:8080   # physical device over USB
+./gradlew :app:installDebug -PcrackmeBaseUrl=http://127.0.0.1:8080
 ```
+
+Only a debug build with an `http://` base URL adds `ConnectionSpec.CLEARTEXT` to the OkHttp
+client; release builds are `RESTRICTED_TLS` only and cannot dial plaintext at all. See
+`server/README.md` ("Local device integration") for the matching local backend launcher.
 
 `CertificatePinner` does not apply to plaintext connections, so a debug build against a
 local HTTP server exercises attestation and storage but not pinning. Pinning is verified
@@ -42,7 +50,7 @@ An emulator has no real attestation keybox and must be rejected with
 ## Verifying the pins
 
 ```sh
-for f in app/pins/*.pem; do
+for f in "Mobile app"/pins/*.pem; do
   openssl x509 -in "$f" -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64
 done
 ```

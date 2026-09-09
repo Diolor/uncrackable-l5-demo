@@ -21,12 +21,31 @@ class GoogleStatusFetcher : StatusFetcher {
             if (connection.responseCode != 200) throw Unavailable()
             val bytes = connection.inputStream.use { it.readNBytes(4 * 1024 * 1024 + 1) }
             if (bytes.size > 4 * 1024 * 1024) throw Unavailable()
-            val cache = connection.getHeaderField("Cache-Control").orEmpty()
-            val ttl = if (cache.contains("no-cache", true) || cache.contains("no-store", true)) 0 else
-                Regex("(?i)(?:^|,)\\s*max-age=(\\d+)").find(cache)?.groupValues?.get(1)?.toLongOrNull() ?: 300
-            val age = connection.getHeaderField("Age")?.toLongOrNull()?.coerceAtLeast(0) ?: 0
-            return StatusDownload(bytes.toString(Charsets.UTF_8), (minOf(ttl, 300) - age).coerceAtLeast(0))
+            val ttl = snapshotTtl(connection.getHeaderField("Cache-Control"), connection.getHeaderField("Age"))
+            return StatusDownload(bytes.toString(Charsets.UTF_8), ttl)
         } finally { connection.disconnect() }
+    }
+
+    companion object {
+        const val MAX_TTL_SECONDS = 300L
+
+        /**
+         * How long a snapshot may be reused: at most [MAX_TTL_SECONDS], and never past the origin's
+         * own `max-age` minus the `Age` a CDN cache reports. The feed is served with a 24-hour
+         * `max-age`; a cached copy that is hours old is still valid by the origin's policy, so only
+         * the *remaining* origin lifetime is compared, not the absolute Age. A copy that the origin
+         * itself would consider stale (Age >= max-age, or no-cache/no-store) yields 0, which the
+         * revocation cache treats as unavailable.
+         */
+        internal fun snapshotTtl(cacheControl: String?, ageHeader: String?): Long {
+            val cache = cacheControl.orEmpty()
+            if (cache.contains("no-cache", true) || cache.contains("no-store", true)) return 0
+            val originMaxAge = Regex("(?i)(?:^|,)\\s*max-age=(\\d+)").find(cache)?.groupValues?.get(1)?.toLongOrNull()
+                ?: MAX_TTL_SECONDS
+            val age = ageHeader?.toLongOrNull()?.coerceAtLeast(0) ?: 0
+            val remaining = originMaxAge - age
+            return if (remaining <= 0) 0 else minOf(remaining, MAX_TTL_SECONDS)
+        }
     }
 }
 

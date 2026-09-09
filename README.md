@@ -12,7 +12,7 @@ Read [the design plan](UnCrackable-L5-Plan.md) and [repository guidance](AGENTS.
 
 ## Current implementation
 
-The [local backend milestone](server/README.md) has a Ktor application composition,
+The [backend runtime](server/README.md) has a Ktor application composition,
 challenge protocol, Android attestation adapter, revocation cache and tests.
 Run with Java 21:
 
@@ -20,11 +20,14 @@ Run with Java 21:
 ./gradlew :server:test
 ```
 
-The [Android client](app/README.md) implements attestation key generation, the pinned
+The [Android client](<Mobile app/README.md>) implements attestation key generation, the pinned
 OkHttp protocol client, AES-GCM Keystore persistence of downloaded flags and the
-single-screen UI; it builds and passes unit tests but has not yet been validated on a
-physical device. The Firestore adapter, production runtime and deployment are not
-implemented yet. No Firebase resources were changed.
+single-screen UI. On 2026-09-09 a debug build completed the full round trip against the
+local backend on a physical OnePlus 9 Pro (Android 14, TEE, locked bootloader): tier 2
+accepted, replayed and tampered proofs rejected, flag stored encrypted, no plaintext in
+files or logs. The recorded chain is in `fixtures/`. The backend now includes a Firestore replay adapter, strict runtime
+configuration, Netty launcher and container recipe. Distributed ingress limits,
+deployment setup and live integration validation remain. No Firebase resources were changed.
 Tests contain synthetic values, not challenge flags. Test certificate generators
 are excluded from the runtime artifact.
 

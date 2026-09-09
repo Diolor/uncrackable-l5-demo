@@ -5,7 +5,7 @@ import okhttp3.CertificatePinner
 /**
  * SPKI SHA-256 pins for the six public roots the backend may chain to. Roots only, OR-ed.
  *
- * Each value is computed from the CA's own published PEM (kept in `app/pins/`), never from
+ * Each value is computed from the CA's own published PEM (kept in `Mobile app/pins/`), never from
  * a live connection:
  *   openssl x509 -in <root>.pem -pubkey -noout | openssl pkey -pubin -outform der \
  *     | openssl dgst -sha256 -binary | base64

@@ -233,4 +233,15 @@ class BackendTest {
         val large = client.post("/v1/attest") { contentType(ContentType.Application.Json); setBody("x".repeat(41000)) }
         assertEquals(HttpStatusCode.PayloadTooLarge, large.status)
     }
+
+    @Test fun `status snapshot lifetime follows remaining origin lifetime, capped at five minutes`() {
+        assertEquals(300, GoogleStatusFetcher.snapshotTtl("public, max-age=86400", null))
+        assertEquals(300, GoogleStatusFetcher.snapshotTtl("public, max-age=86400", "57600")) // CDN copy 16 h old, still valid
+        assertEquals(100, GoogleStatusFetcher.snapshotTtl("max-age=86400", "86300"))
+        assertEquals(0, GoogleStatusFetcher.snapshotTtl("max-age=86400", "86400"))
+        assertEquals(0, GoogleStatusFetcher.snapshotTtl("no-cache", null))
+        assertEquals(0, GoogleStatusFetcher.snapshotTtl("max-age=60, no-store", "0"))
+        assertEquals(60, GoogleStatusFetcher.snapshotTtl("max-age=60", "garbage"))
+        assertEquals(0, GoogleStatusFetcher.snapshotTtl(null, "999999")) // unknown origin policy: default 300 s, exceeded
+    }
 }
