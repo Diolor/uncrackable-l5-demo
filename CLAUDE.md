@@ -1,0 +1,116 @@
+# CLAUDE.md
+
+Guidance for Claude Code (claude.ai/code) when working in this repository.
+
+## What this is
+
+**Android UnCrackable L5** — a network-backed crackme for the OWASP MASTG crackme
+catalogue. Unlike every existing Android crackme, the flag is **never present in the
+APK**. It is issued over a pinned TLS channel by a backend that answers only a request
+carrying a fresh, hardware-attested proof from an unmodified, correctly-signed build.
+
+Full design rationale, decisions, and the intended solutions live in
+[`UnCrackable-L5-Plan.md`](UnCrackable-L5-Plan.md). Read it before changing behaviour —
+many things that look like bugs are deliberate and load-bearing.
+
+This crackme is the hands-on companion to MASTG PR
+[OWASP/mastg#3953](https://github.com/OWASP/mastg/pull/3953) (`MASTG-BEST-0x01`
+hardware-backed key attestation).
+
+## Core invariants — do not break these
+
+These properties are the crackme. A change that violates one silently ruins it.
+
+1. **No flag values in the shipped APK.** No plaintext or encrypted flag payload is
+   bundled in code, resources, assets or native libraries. The response model may declare
+   `flag`; downloaded flags are processed at runtime and persisted. Keep flags out of UI
+   and logs. The plan proposes AES-GCM storage with a separate persistent Android Keystore
+   key; this does not prevent runtime extraction.
+2. **TLS always fails closed.** No intentional retry downgrade, permissive trust manager,
+   disabled hostname verification or pin removal. Repeated attempts preserve every check.
+3. **Backend verification is strict except for the documented revocation omission.**
+   No weak randomness or rate-limit hole. Do not claim the backend is fully correct or
+   that every intended attack is client-side while retaining the Flag 2 omission.
+4. **Attestation freshness stays closed.** Server-issued single-use nonce throughout;
+   never hardcode or omit `setAttestationChallenge`. This is what defeats a two-device relay.
+5. **Anti-repackaging via `attestationApplicationId`.** The server checks package name +
+   signer cert SHA-256. A re-signed APK must be rejected. Never relax step 8.
+6. **Intentional omission:** the backend deliberately does **not** query
+   `android.googleapis.com/attestation/status` (no revocation check). This keeps the
+   keybox route to Flag 2 open and demonstrates the failure `MASTG-BEST-0x01` warns about.
+   It must be documented as intentional in README/SOLUTION/website or reviewers file it as a bug.
+
+## Immutable-forever values (attested; cannot change after release)
+
+- Package: `org.owasp.mastg.uncrackable5`, label `UnCrackable L5`, versionName `1.0`
+- `minSdk = 28`, `targetSdk`/`compileSdk = 36`
+- Signing key: **never rotate** (v3.1 rotation changes `attestationApplicationId`)
+- Pinned roots: GTS Root R1–R4 + ISRG Root X1/X2 (roots only, OR-ed; never leaf/intermediate)
+- Backend hostname (see blocking decisions below)
+
+## Layout (target)
+
+```
+Uncrackable/
+  app/          Kotlin Android client (Gradle)
+  server/       Kotlin/Ktor backend (Gradle)
+  infra/        gcloud deploy script or Terraform, firebase.json
+  fixtures/     recorded attestation chains for server tests
+  README.md     brief, hard requirements, flag SHA-256s, intentional-omission notes
+  SOLUTION.md   the writeup required by the contributing terms
+```
+
+Not yet a git repo — `git init` before first commit.
+
+- Source → `github.com/OWASP/mas-crackmes` at `Android/Level5/`. Committed: pins, backend
+  URL, package name, signer digest. **Never committed:** keystore, `CHALLENGE_HMAC_KEY`, flags.
+- Binary APK → `github.com/OWASP/mastg` at `Crackmes/Android/Level_05/`.
+
+## Build order (why: the app is frozen last)
+
+The APK is immutable once signed, and its pins can only be frozen once the live TLS chain
+exists. Build in this order:
+
+1. **Server** (Ktor) with the verification pipeline + fixture-based unit tests.
+2. **Deploy** to Cloud Run; wire Firebase Hosting `/v1/**` rewrite.
+3. **Custom domain**: fix CAA records first (must allow `pki.goog` + `letsencrypt.org`),
+   add domain in Firebase console, wait for managed cert. Confirm with
+   `openssl s_client -connect <host>:443 -showcerts` that the live chain ends in a pinned root.
+4. **Freeze the pin set**, then build, sign, and publish the APK.
+
+## Firebase's actual role
+
+Firebase Hosting is **only** a reverse proxy in front of Cloud Run (the `/v1/**` rewrite)
+plus a static status `index.html`. It does **not** perform authentication. Auth is hardware
+Key Attestation verified by the Ktor backend. Firebase App Check is deliberately **not** used
+as a control (a sideloaded APK can never get `PLAY_RECOGNIZED`).
+
+Firebase project: `uncrackable-l5` (console.firebase.google.com/project/uncrackable-l5).
+
+## Server secrets (Secret Manager, never in the image)
+
+`CHALLENGE_HMAC_KEY`, `FLAG_TIER1`, `FLAG_TIER2`, `APP_PACKAGE`, `APP_SIGNER_SHA256`,
+`ATTESTATION_ROOTS` (PEM bundle). Use a dedicated runtime SA with `secretAccessor`, not the
+default compute SA.
+
+## Blocking decisions before the APK ships
+
+Tracked in the plan (section "Decide before the APK ships"): OWASP-controlled hostname vs.
+personal `crackme.lorenzos.com`, GCP project/billing ownership transfer to OWASP, signing
+keystore custody (≥2 custodians), MAS-team contact per
+`docs/contributing/6_Add_a_Crackme.md`, and real MASTG ID allocation.
+
+## Conventions
+
+- Kotlin throughout (client and server). Server: Ktor 3.x / Java 21, distroless image.
+- Client: OkHttp 4.12+, `CertificatePinner` (not a hand-rolled `X509TrustManager`) plus
+  `network_security_config.xml` with `system`-only trust anchors, `cleartextTrafficPermitted=false`.
+- Ship a **universal APK**, not an AAB, so the installed artefact is byte-identical to published.
+- Server unit tests run against committed attestation-chain fixtures (no device needed).
+- Markdown lint (shared MAS stack): `npx markdownlint-cli2 --config .markdownlint.jsonc`.
+
+## Attribution for commits/PRs
+
+- Commits end with: `Co-Authored-By: Claude <noreply@anthropic.com>`
+- PR descriptions end with: `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
+- Per OWASP MAS rules, **all PRs must disclose AI tool usage** — undisclosed use closes the PR.
