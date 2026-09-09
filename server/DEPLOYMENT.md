@@ -1,7 +1,10 @@
 # Hosted deployment
 
-The backend baked into the published APK is `https://uncrackable-l5-demo.onrender.com`,
-a Render web service with a Render Postgres database. The presented TLS chain terminates
+The backend baked into the published APK (versionName 1.0) is
+`https://uncrackable-l5-demo.onrender.com`, a Render web service with a Render Postgres
+database. Its successor, a Cloudflare Workers port at `https://crackme.lorentzos.com`, is
+described in [`../server-worker/README.md`](../server-worker/README.md) and takes over with
+the next APK release; Render stays up until then. The presented TLS chain terminates
 in GTS Root R4, one of the six roots pinned by the client. No pin or trust bypass exists
 on either side.
 

@@ -1,0 +1,117 @@
+{
+ "root": {
+  "publicKey": {
+   "key_ops": [
+    "verify"
+   ],
+   "ext": true,
+   "kty": "EC",
+   "x": "HfZABrguVEvmv3UBW9b7X1Btps90tJwgNjOREymg1zU",
+   "y": "T2fdB3IdZCZ4NQmbwghEefGAhNUI1k4PHGzF4ZU9XiM",
+   "crv": "P-256"
+  },
+  "privateKey": {
+   "key_ops": [
+    "sign"
+   ],
+   "ext": true,
+   "kty": "EC",
+   "x": "HfZABrguVEvmv3UBW9b7X1Btps90tJwgNjOREymg1zU",
+   "y": "T2fdB3IdZCZ4NQmbwghEefGAhNUI1k4PHGzF4ZU9XiM",
+   "crv": "P-256",
+   "d": "0fUegt4Sw5TzBmMkpgDHwM4eOIrnJhLTJaae1kmxKfc"
+  }
+ },
+ "intermediate": {
+  "publicKey": {
+   "key_ops": [
+    "verify"
+   ],
+   "ext": true,
+   "kty": "EC",
+   "x": "OiVW-bJuGAJ1FXsO2I1-8rCQe7dB7HXMYvTwQKVLub8",
+   "y": "8spNDBl4jFmihPyEmQPN_HFwvx9UIbNimDua1udA6LI",
+   "crv": "P-256"
+  },
+  "privateKey": {
+   "key_ops": [
+    "sign"
+   ],
+   "ext": true,
+   "kty": "EC",
+   "x": "OiVW-bJuGAJ1FXsO2I1-8rCQe7dB7HXMYvTwQKVLub8",
+   "y": "8spNDBl4jFmihPyEmQPN_HFwvx9UIbNimDua1udA6LI",
+   "crv": "P-256",
+   "d": "oR0-T1F3ZeLGl6v5wbniCNtw7GvX8mkSZ2QgKOTMUN4"
+  }
+ },
+ "attestation": {
+  "publicKey": {
+   "key_ops": [
+    "verify"
+   ],
+   "ext": true,
+   "kty": "EC",
+   "x": "BQuoQcXINyKAjeyGseBUEomoULs6S8_EcKDyw8aO4WA",
+   "y": "1WNf8UeuWVhgjSzrVtAqlIa6XhUlbKPrzdWNBc9QU4U",
+   "crv": "P-256"
+  },
+  "privateKey": {
+   "key_ops": [
+    "sign"
+   ],
+   "ext": true,
+   "kty": "EC",
+   "x": "BQuoQcXINyKAjeyGseBUEomoULs6S8_EcKDyw8aO4WA",
+   "y": "1WNf8UeuWVhgjSzrVtAqlIa6XhUlbKPrzdWNBc9QU4U",
+   "crv": "P-256",
+   "d": "zoVhHnQOnI_G83P3otvOPeyABjf8doDYvaH0BQNRPK8"
+  }
+ },
+ "leaf": {
+  "publicKey": {
+   "key_ops": [
+    "verify"
+   ],
+   "ext": true,
+   "kty": "EC",
+   "x": "Wq7qumDxLwAvhjn-zfeTntabxtEMpIbUG05W4ksthQ8",
+   "y": "IrpwLH5j5TKOuC25q42Y5_1mHivsc3ZzopcLIG_baIU",
+   "crv": "P-256"
+  },
+  "privateKey": {
+   "key_ops": [
+    "sign"
+   ],
+   "ext": true,
+   "kty": "EC",
+   "x": "Wq7qumDxLwAvhjn-zfeTntabxtEMpIbUG05W4ksthQ8",
+   "y": "IrpwLH5j5TKOuC25q42Y5_1mHivsc3ZzopcLIG_baIU",
+   "crv": "P-256",
+   "d": "OsIUXNQ5_rOuz3ro3i6GJQJu5EHv6FO6uB7DQCa3srg"
+  }
+ },
+ "other": {
+  "publicKey": {
+   "key_ops": [
+    "verify"
+   ],
+   "ext": true,
+   "kty": "EC",
+   "x": "YUmqJzI52kt6FqLl83_nj4P0H7M_aqNVeWQaeGDFuPw",
+   "y": "6cnPTIHhomYZlbxBqQiOCRlb8ZV0E24LPh1KqhxgY5M",
+   "crv": "P-256"
+  },
+  "privateKey": {
+   "key_ops": [
+    "sign"
+   ],
+   "ext": true,
+   "kty": "EC",
+   "x": "YUmqJzI52kt6FqLl83_nj4P0H7M_aqNVeWQaeGDFuPw",
+   "y": "6cnPTIHhomYZlbxBqQiOCRlb8ZV0E24LPh1KqhxgY5M",
+   "crv": "P-256",
+   "d": "_vh_sTWQe4CjqlSwN2F8smI3kae00p-7hpPZhw3lYuU"
+  }
+ }
+}

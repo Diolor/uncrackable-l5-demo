@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "uncrackable-l5",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-08-22",
+  "workers_dev": false,
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "rules": [{ "type": "Text", "globs": ["**/*.pem"], "fallthrough": true }],
+  "vars": {
+    "APP_PACKAGE": "org.owasp.mastg.uncrackable5",
+    "APP_SIGNER_SHA256": "c164284d7f40f7c2f1410d9c9a0bebc31b50066164c753022b13a69faa7ba277"
+  },
+  "durable_objects": { "bindings": [{ "name": "STATE", "class_name": "State" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["State"] }],
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "routes": [{ "pattern": "crackme.lorentzos.com", "custom_domain": true }]
+}

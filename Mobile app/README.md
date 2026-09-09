@@ -27,8 +27,8 @@ Run these commands from the repository root. The Android project lives in
 ./gradlew :app:testDebugUnitTest :app:assembleRelease
 ```
 
-The release build bakes in `https://uncrackable-l5-demo.onrender.com` as the backend
-origin (override with `-PcrackmeReleaseBaseUrl=https://...`). The release APK is unsigned
+The release build bakes in `https://crackme.lorentzos.com` as the backend origin (the
+published 1.0 APK was built against `https://uncrackable-l5-demo.onrender.com`) (override with `-PcrackmeReleaseBaseUrl=https://...`). The release APK is unsigned
 unless `UNCRACKABLE_KEYSTORE`, `UNCRACKABLE_KEYSTORE_PASSWORD`, `UNCRACKABLE_KEY_ALIAS`
 and `UNCRACKABLE_KEY_PASSWORD` are set; see [RELEASE-SIGNING.md](../RELEASE-SIGNING.md).
 The keystore is never committed and the signing key must never be rotated, because the

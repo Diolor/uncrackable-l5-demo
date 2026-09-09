@@ -48,14 +48,17 @@ These properties are the crackme. A change that violates one silently ruins it.
 - `minSdk = 28`, `targetSdk`/`compileSdk = 36`
 - Signing key: **never rotate** (v3.1 rotation changes `attestationApplicationId`)
 - Pinned roots: GTS Root R1–R4 + ISRG Root X1/X2 (roots only, OR-ed; never leaf/intermediate)
-- Backend origin: `https://uncrackable-l5-demo.onrender.com`
+- Backend origin: `https://uncrackable-l5-demo.onrender.com` for the published 1.0 APK;
+  `https://crackme.lorentzos.com` (Cloudflare Workers, `server-worker/`) for the next release.
+  Both stay reachable until the Render service is retired after cutover.
 
 ## Layout
 
 ```text
 Uncrackable/
   Mobile app/   Kotlin Android client (Gradle module :app)
-  server/       Kotlin/Ktor backend (Gradle), DEPLOYMENT.md
+  server/       Kotlin/Ktor backend (Gradle), DEPLOYMENT.md; kept as the verifier parity oracle
+  server-worker/ TypeScript Cloudflare Workers backend (live), PARITY.md, README.md
   third_party/  Google's Android key attestation verifier, pinned revision
   fixtures/     recorded attestation chains for server tests
   release/      signed APK, public signing certificate, signer digest
@@ -67,6 +70,9 @@ Uncrackable/
 
 Committed: pins, backend origin, package name, signer digest, public certificate.
 **Never committed:** keystore, `CHALLENGE_HMAC_KEY`, flags, hosting credentials.
+
+Any change under `server-worker/src/verifier/` must keep `npm run parity` green
+(`server-worker/PARITY.md`); the Kotlin server is the reference implementation.
 
 ## Server secrets (host secret store, never in the image)
 

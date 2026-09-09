@@ -7,7 +7,7 @@ plugins {
 // Backend origin baked into the APK. Release builds always use the pinned HTTPS origin;
 // debug builds may point at a local server with -PcrackmeBaseUrl=http://... because the
 // debug network_security_config permits cleartext to loopback. Release never does.
-val releaseBaseUrl = (findProperty("crackmeReleaseBaseUrl") as String?) ?: "https://uncrackable-l5-demo.onrender.com"
+val releaseBaseUrl = (findProperty("crackmeReleaseBaseUrl") as String?) ?: "https://crackme.lorentzos.com"
 val baseUrl = (findProperty("crackmeBaseUrl") as String?) ?: releaseBaseUrl
 require(Regex("https://[A-Za-z0-9.-]+(?::[0-9]+)?").matches(releaseBaseUrl)) {
     "Release URL must be an HTTPS origin without a path, credentials, query or fragment"

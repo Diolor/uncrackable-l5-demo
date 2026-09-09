@@ -18,7 +18,7 @@ attestation ([OWASP/mastg#3953](https://github.com/OWASP/mastg/pull/3953)).
 | APK SHA-256 | `a2ab837e8a57bcd79726610b9de75dec7f1a5bd6cf701e372da1dfd6af911aaa` |
 | Package | `org.owasp.mastg.uncrackable5`, versionName `1.0`, minSdk 28, targetSdk 36 |
 | Signer certificate SHA-256 | [`release/signer-sha256.txt`](release/signer-sha256.txt) |
-| Backend | `https://uncrackable-l5-demo.onrender.com` |
+| Backend | `https://uncrackable-l5-demo.onrender.com` (this APK); the next release targets `https://crackme.lorentzos.com` (Cloudflare Workers, see `server-worker/`) |
 
 Install with `adb install release/UnCrackable-Level5.apk`. Verify the download with
 `sha256sum` and the signer with `apksigner verify --print-certs`.
