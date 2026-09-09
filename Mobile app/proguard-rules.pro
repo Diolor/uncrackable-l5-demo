@@ -1,4 +1,4 @@
-# Strip all android.util.Log calls from the release build (plan: no logging in any build type).
+# Strip all android.util.Log calls from the release build (no logging in any build type).
 -assumenosideeffects class android.util.Log {
     public static *** v(...);
     public static *** d(...);

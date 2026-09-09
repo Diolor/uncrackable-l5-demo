@@ -1,4 +1,4 @@
-# Backend runtime
+# Backend
 
 ## Run validation
 
@@ -9,11 +9,12 @@ Requires Java 21; the checksum-pinned Gradle wrapper downloads build dependencie
 ```
 
 Ktor's test host runs `/v1/challenge`, `/v1/attest` and `/v1/health` through the real
-verifier adapter with synthetic signed chains. The tests require no Firebase
-credentials, device, live status feed or production secret. Dependency versions
-are recorded in Gradle lockfiles. Build downloads require network access once.
+verifier adapter with synthetic signed chains, plus the recorded real-device chain in
+[`fixtures/`](../fixtures/README.md). The tests require no credentials, device, live
+status feed or production secret. Dependency versions are recorded in Gradle lockfiles.
+The optional live Postgres concurrency test runs only when `DEMO_DATABASE_URL` is set.
 
-## Implemented boundaries
+## Enforced boundaries
 
 - Canonical 57-byte HMAC-authenticated challenges expire at 120 seconds.
 - Google's pinned Android verifier handles certificate chains and attestation parsing.
@@ -25,13 +26,19 @@ are recorded in Gradle lockfiles. Build downloads require network access once.
   Missing, expired, malformed or unavailable status data prevents flag issuance with HTTP 503.
 - Certificate time, challenge binding and proof of possession precede atomic replay
   consumption. Expiry is rechecked before and after the store operation.
-- Every flag requires locked + Verified hardware boot evidence. Otherwise return 403 `device_integrity`; never fall back to tier 1.
+- Every flag requires locked + Verified hardware boot evidence. Otherwise the server
+  returns 403 `device_integrity`; there is no tier-one fallback.
 - HTTP bodies are bounded during reading, responses are not cacheable, and errors
-  exclude proof material and flags. Logging of request/response bodies is not installed.
+  exclude proof material and flags. Request and response bodies are never logged.
 
-`crackme(service)` remains the injectable application factory. `MainKt` composes
-Netty, explicit configuration, the Google HTTPS status fetcher and Firestore replay
-storage. The only in-memory replay implementation is in test sources.
+`crackme(service)` is the injectable application factory. Two launchers compose it:
+
+| Launcher | Replay store | Used by |
+| --- | --- | --- |
+| `RenderDemoMainKt` | Postgres, insert-on-conflict | The hosted deployment, see [DEPLOYMENT.md](DEPLOYMENT.md) |
+| `MainKt` | Firestore, create-if-absent | Cloud Run alternative, `server/Dockerfile` |
+
+The only in-memory replay implementation is in test sources.
 
 ## Local device integration
 
@@ -54,38 +61,28 @@ JSON file so real-device chains can be turned into committed test fixtures. Outc
 rejection codes are printed; proof material is not. The launcher is never part of the
 runtime distribution or container.
 
-## Runtime and container
+## Configuration
 
-Build the distribution with Java 21:
-
-```sh
-./gradlew :server:test :server:installDist
-docker build -f server/Dockerfile -t uncrackable-l5 .
-```
-
-The container copies only the distribution libraries and runs as a non-root user
-on distroless Java 21. Resolve the base image to an approved immutable digest before
-release. Container building requires Docker; Gradle validation alone does not test
-container startup.
-
-Cloud Run should inject numbered Secret Manager versions into these variables;
-never put secret values in a Docker build argument, image, shell history or Git:
+Inject these as environment variables from the host's secret store. Never put secret
+values in a Docker build argument, image, shell history or Git.
 
 | Variable | Required format |
 | --- | --- |
 | `CHALLENGE_HMAC_KEY` | Standard Base64 encoding of at least 32 random bytes |
-| `FLAG_TIER1`, `FLAG_TIER2` | Nonblank distinct flags |
-| `APP_PACKAGE` | `org.owasp.mastg.uncrackable5` |
+| `FLAG_TIER1`, `FLAG_TIER2` | Nonblank distinct flags; `FLAG_TIER1` is reserved and never issued |
+| `APP_PACKAGE` | `org.owasp.mastg.uncrackable5` (Firestore launcher) |
+| `DEMO_MODE` | `render-release` or `render-debug` (Render launcher; selects the package) |
 | `APP_SIGNER_SHA256` | Exactly 64 hexadecimal characters, no separators |
 | `ATTESTATION_ROOTS` | Explicit PEM bundle of self-signed CA certificates |
-| `GOOGLE_CLOUD_PROJECT` | Explicit Firestore project ID |
-| `PORT` | Optional listen port, defaults to 8080 |
+| `DEMO_DATABASE_URL` | Postgres URL over TLS (Render launcher) |
+| `GOOGLE_CLOUD_PROJECT` | Firestore project ID (Firestore launcher) |
+| `PORT` | Optional listen port |
 
 No trust roots, signer or flag defaults exist. Operators must verify the provenance
 of the configured Android attestation roots; PEM validation does not establish that
-Google owns a root. The production launcher rejects `FIRESTORE_EMULATOR_HOST`.
-Configuration errors name only the setting, never its value. Application Default
-Credentials use the attached dedicated runtime service account in Cloud Run.
+Google owns a root. Configuration errors name only the setting, never its value.
+
+### Firestore launcher notes
 
 Firestore uses the project's `(default)` database and `used_challenges` collection.
 Each accepted proof calls document `create` with the SHA-256 challenge digest as ID
@@ -94,24 +91,17 @@ bounds the caller; every other error or uncertain result fails closed with 503.
 A timed-out write can still commit, so clients must obtain a new challenge. TTL
 cleanup never controls challenge validity. Configure Native-mode Firestore in the
 service region, TTL on `expireAt`, deny-all client rules, and runtime IAM access to
-data. IAM governs this server SDK; client security rules do not restrict it.
+data. The production launcher rejects `FIRESTORE_EMULATOR_HOST`.
 
-## Deployment gates
+## Known limitations
 
-This runtime is **not ready for public exposure**. Still required:
-
-- Ingress-aware distributed per-IP abuse limits, including a reviewed trusted-proxy
-  boundary for Firebase Hosting and direct Cloud Run requests. Do not trust arbitrary
-  forwarded headers or substitute an instance-local limiter.
-- Cloud Run/Firebase deployment configuration, least-privilege secret access,
-  structured verification outcome logging without proof/flag material, monitoring,
-  budget alerts and an approved immutable container base digest.
-- Emulator or isolated-project integration validation of Firestore concurrent creates,
-  TTL field encoding and IAM failures. Unit tests cover adapter result mapping,
-  timeouts and configuration rejection, not the live Google service.
-- Physical-device fixtures and the release decisions in the plan.
-
-No production resources or secrets are provisioned by the build.
+- Abuse limiting is a shared global request ceiling in the Render launcher, not an
+  ingress-aware per-IP policy. It deliberately ignores forwarded headers, which are
+  spoofable without a reviewed trusted-proxy boundary.
+- Structured outcome logging, monitoring and budget alerting are host-level concerns not
+  provided by this code.
+- Firestore concurrent-create behaviour is covered by unit tests of the adapter's result
+  mapping, not by tests against the live Google service.
 
 ## Trust and test limitations
 
@@ -122,13 +112,8 @@ tags are rejected (including legacy allApplications). The adapter adds leaf
 validity checking and uses its own status loader because upstream filters REVOKED
 only. Upstream source is unchanged; test factories are a separate test artifact.
 
-Synthetic chains prove policy and protocol behavior, not actual hardware identity.
-Real-device compatibility and the live revocation fetch were demonstrated on 2026-09-09
-with a OnePlus 9 Pro (Android 14, TEE, locked, verified boot): tier 2 accepted, replay
-and tampered proofs rejected, encrypted record written; see [`fixtures/`](../fixtures/README.md).
-Firestore atomicity and Flag 1/2 extraction are not yet demonstrated. Never trust the
-test root in a deployed service.
-
-Next: distributed ingress limits and deployment configuration, followed by the
-integration and device validation above. Resolve hostname, signer custody and
-cloud ownership before production provisioning/publication.
+Synthetic chains prove policy and protocol behaviour, not actual hardware identity.
+Real-device compatibility and the live revocation fetch were demonstrated with a
+OnePlus 9 Pro (Android 14, TEE, locked, verified boot): tier 2 accepted, replay and
+tampered proofs rejected, encrypted record written. Never trust the test root in a
+deployed service.

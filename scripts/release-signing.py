@@ -48,4 +48,4 @@ if sys.argv[1] == 'create':
 else:
     env = dict(os.environ, **json.loads(CONFIG.read_text()))
     run(str(ROOT / 'gradlew'), ':app:assembleRelease',
-        '-PcrackmeReleaseBaseUrl=https://uncrackable-l5-demo.onrender.com', '--no-daemon', cwd=ROOT, env=env)
+        '--no-daemon', cwd=ROOT, env=env)

@@ -29,9 +29,9 @@ import javax.crypto.spec.GCMParameterSpec
  *   discarded. There is never a plaintext fallback.
  *
  * A stored record is a previously issued flag, not proof of current device integrity, and never
- * satisfies a new ATTEST. Encryption protects the bytes at rest; instrumentation inside this
- * process can still observe plaintext at the encrypt/decrypt boundary. That is the intended
- * research surface, not an oversight.
+ * satisfies a new ATTEST. The app never decrypts a record on its own: the only in-process
+ * plaintext exists while an accepted response is being encrypted. [read] is retained for
+ * research and tooling; nothing in the shipped UI calls it.
  */
 class FlagStore(context: Context) {
     private val dir: File = File(context.noBackupFilesDir, "flags").apply { mkdirs() }

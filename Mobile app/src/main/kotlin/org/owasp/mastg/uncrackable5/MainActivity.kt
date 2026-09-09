@@ -27,7 +27,6 @@ class MainActivity : Activity() {
         attest = findViewById(R.id.attest)
         attest.setOnClickListener { runAttempt() }
         status.setText(R.string.status_idle)
-        validateStoredRecords()
     }
 
     override fun onDestroy() {
@@ -65,21 +64,6 @@ class MainActivity : Activity() {
                 if (isDestroyed) return@post
                 status.setText(result)
                 attest.isEnabled = true
-            }
-        }
-    }
-
-    /**
-     * Later local access: decrypt any stored records in process to confirm they still authenticate,
-     * discarding corrupt ones. Plaintext is zeroed immediately. This neither displays anything nor
-     * counts as attestation.
-     */
-    private fun validateStoredRecords() {
-        val context = applicationContext
-        executor().execute {
-            val store = FlagStore(context)
-            for (tier in store.storedTiers()) {
-                runCatching { store.read(tier) }.getOrNull()?.fill(0)
             }
         }
     }

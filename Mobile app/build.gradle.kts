@@ -4,12 +4,11 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-// Release hostname is a pending release decision (see plan, "Release decisions").
-// The default below is the placeholder used throughout the plan; override with
-// -PcrackmeBaseUrl=... for local integration builds. Debug builds may use http://
-// because the debug network_security_config permits cleartext; release never does.
-val baseUrl = (findProperty("crackmeBaseUrl") as String?) ?: "https://crackme.lorenzos.com"
-val releaseBaseUrl = (findProperty("crackmeReleaseBaseUrl") as String?) ?: "https://crackme.lorenzos.com"
+// Backend origin baked into the APK. Release builds always use the pinned HTTPS origin;
+// debug builds may point at a local server with -PcrackmeBaseUrl=http://... because the
+// debug network_security_config permits cleartext to loopback. Release never does.
+val releaseBaseUrl = (findProperty("crackmeReleaseBaseUrl") as String?) ?: "https://uncrackable-l5-demo.onrender.com"
+val baseUrl = (findProperty("crackmeBaseUrl") as String?) ?: releaseBaseUrl
 require(Regex("https://[A-Za-z0-9.-]+(?::[0-9]+)?").matches(releaseBaseUrl)) {
     "Release URL must be an HTTPS origin without a path, credentials, query or fragment"
 }

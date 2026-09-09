@@ -1,9 +1,9 @@
 # Solution status
 
-No release-build flag extraction has been demonstrated. The former tier-one route
-using an unlocked rooted device is no longer a valid solution: every flag requires
+No release-build flag extraction has been demonstrated. Every flag requires
 hardware-enforced locked and VERIFIED boot, with all certificate, revocation, app
-identity, freshness, possession and replay checks passing.
+identity, freshness, possession and replay checks passing. An unlocked or rooted device
+that no longer reports verified boot is therefore not a route to the flag.
 
 A stock device receiving and encrypting the flag is a compatibility test, not a solve.
 Debug builds permit debugging and are not evidence of release resistance.
