@@ -36,3 +36,36 @@ are unchanged. Device acceptance, negative pinning tests, and durable replay
 validation must be recorded separately; deployment alone proves none of these.
 
 Implementation assistance: OpenAI Codex.
+
+## Recorded deployment and device validation — 2026-09-09
+
+- Endpoint: <https://uncrackable-l5-demo.onrender.com>
+- Private source: <https://github.com/Diolor/uncrackable-l5-demo>
+- Render service: `srv-dagr5ouk1f9s73cmqj0g`, free, Frankfurt.
+- Live deployment: `dep-dagr5pek1f9s73cmqkvg`, source `f9532bb`, live at 19:30:57 UTC.
+- Postgres: `dpg-dagr1tepcuac73a9qs9g-a`, free, PostgreSQL 17; expires
+  2026-10-09. External access is restricted to the service's observed shared
+  outbound ranges `74.220.51.0/24` and `74.220.59.0/24`, explicitly approved
+  for this demo. Workstation access has been removed.
+- The presented TLS chain is `onrender.com` → GTS WE1 → cross-signed GTS Root R4.
+  R4's SPKI matches the existing `sha256/mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c=`
+  pin. No pin or trust bypass was added.
+- OnePlus 9 Pro (LE2123), Android 14, debug package and configured debug signer:
+  ATTEST completed over the deployed HTTPS endpoint. At 19:31:18 UTC the backend
+  logged `demo: evidence accepted tier=2`; the app displayed
+  “Accepted — device and app fully verified.”
+- The encrypted tier-2 record was replaced with a 90-byte record and survived
+  an app force-stop/relaunch unchanged. No flag plaintext was displayed or logged.
+- Live challenge issuance returned HTTP 200, a 76-character token, and
+  `Cache-Control: no-store`. A malformed proof returned HTTP 403 with
+  `attestation_invalid`. Health returned HTTP 200 (body `{}` with the current
+  serializer's default-value omission).
+- Before deployment: 29 server tests passed, including the live Postgres
+  concurrent-insert/new-connection replay test; 8 Android unit tests passed.
+  The container build reran offline server tests (live DB test skipped without
+  credentials). Debug APK build and release Kotlin compilation passed.
+
+This records a successful debug-device demo, not release-signing validation,
+negative proxy/pinning tests, a captured-proof replay test against the hosted
+endpoint, or a flag extraction solve. Cloudflare and custom-domain setup remain
+the next phase. Auto-deploy is disabled; documentation commits do not redeploy.
