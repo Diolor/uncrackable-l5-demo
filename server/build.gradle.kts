@@ -2,6 +2,7 @@ plugins { kotlin("jvm"); kotlin("plugin.serialization"); application }
 application { mainClass.set("org.owasp.uncrackable.server.MainKt") }
 kotlin { jvmToolchain(21) }
 dependencies {
+    implementation("org.postgresql:postgresql:42.7.13")
     implementation("io.ktor:ktor-server-netty:3.2.3")
     implementation("com.google.cloud:google-cloud-firestore:3.45.0")
     runtimeOnly("org.slf4j:slf4j-simple:2.0.17")
@@ -16,6 +17,14 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.12.2")
 }
 tasks.test { useJUnitPlatform() }
+
+// Include only reviewed recordings; fixtures/local may contain unrelated live captures.
+sourceSets.test {
+    resources.srcDir(rootProject.file("fixtures"))
+    resources.include("oneplus9pro-android14-tee-tier2.json")
+    resources.srcDir("roots")
+    resources.include("google-attestation-roots.pem")
+}
 
 // Local integration launcher (test classpath only). See LocalMain.kt for environment variables.
 tasks.register<JavaExec>("runLocal") {
