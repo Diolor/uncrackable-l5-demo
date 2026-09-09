@@ -38,21 +38,19 @@ The challenge is extracting a server-provisioned flag from the genuine app at ru
 The backend validates certificate trust, revocation, challenge freshness, key possession,
 app identity and device state. There are no intentionally omitted security checks.
 
-### Two flags
+### Mandatory device gate and legacy tiers
 
-| | Gate | Objective |
-|---|---|---|
-| **Flag 1** | Fresh challenge, trusted hardware attestation, current revocation check, matching package/signer, proof of possession | Extract the downloaded flag through runtime instrumentation of the genuine app on an eligible rooted device. |
-| **Flag 2** | Flag 1 checks plus hardware-enforced `deviceLocked == true` and `verifiedBootState == Verified` | Open research challenge: extract the flag without weakening the implementation. No demonstrated bypass is required for release. |
+Every issued flag requires fresh trusted hardware attestation, live revocation checks,
+matching package/signer, proof of possession, and hardware-enforced
+`deviceLocked == true` AND `verifiedBootState == VERIFIED`.
+Unlocked, self-signed, unverified, failed or missing hardware boot evidence releases no flag.
+The weaker tier-one fallback is retired. Successful responses retain `tier:2` for
+protocol compatibility; `FLAG_TIER1` remains a reserved configuration value and is never issued.
+There is currently no separate tier-one success criterion.
 
-A stock locked device can receive Flag 2. Receiving it is not solving the extraction
-objective. Repeated TLS failures and copying encrypted files alone do not establish a solve.
-Describe Flag 2 as **no known demonstrated bypass under the stated assumptions**, never
-as a mathematical claim of uncrackability. An attested signer does not prove that a process
-remains unmodified after attestation; revocation cannot detect every unknown compromise.
-
-Revocation checking is mandatory for both tiers. Known-revoked or suspended credentials
-are rejected; no leaked-keybox exception, skip flag, or permissive outage mode is allowed.
+A stock locked device may receive the flag. Receiving it is not solving extraction.
+No release extraction bypass is demonstrated. Boot attestation describes key-creation
+state, not continuous runtime integrity; do not claim that all runtime compromise is impossible.
 
 ---
 
@@ -78,8 +76,8 @@ allow test anchors in the runtime configuration by default. Integrate the offici
 verifier at a pinned revision rather than writing an ASN.1 or certificate path verifier.
 
 Follow with a minimal physical-device client and genuine recorded-chain tests, then Firebase
-integration and deployment. Device tests validate compatibility and Flag 1 extraction;
-Flag 2 investigation is recorded as research and need not produce an exploit.
+integration and deployment. Device tests validate compatibility; extraction remains
+research and need not produce an exploit.
 
 ---
 
@@ -109,7 +107,7 @@ Chain via `KeyStore.getInstance("AndroidKeyStore").getCertificateChain(alias)`, 
 GET  /v1/challenge  -> {"challenge":"<b64url 57B>","expiresIn":120}
 POST /v1/attest     <- {"challenge":..,"chain":[..],"pop":..}
                     -> 200 {"tier":2, "flag":"..."}
-                    -> 200 {"tier":1, "flag":"...", "reason":"device_integrity"}
+                    -> 403 {"error":"device_integrity"} // bootloader not locked and verified
                     -> 403 {"error":"app_integrity"        // signer digest mismatch
                                   | "no_hardware_attestation"  // Software level / emulator
                                   | "challenge_expired"
@@ -191,7 +189,7 @@ The status line is deliberately **instructive rather than opaque**: each failure
 | No hardware attestation (emulator, `Software` level) | `This device has no hardware-backed attestation.` | server `no_hardware_attestation` |
 | Stale or replayed challenge | `Attestation expired. Try again.` | server `challenge_expired` / `challenge_replayed` |
 | Malformed chain, bad PoP, wrong key properties | `Attestation could not be verified.` | server `attestation_invalid` |
-| **Accepted, tier 1** | `Accepted — this device does not have a verified bootloader.` | server `tier:1` |
+| Boot policy rejected | `Device bootloader is not locked and verified.` | server `device_integrity` |
 | **Accepted, tier 2** | `Accepted — device and app fully verified.` | server `tier:2` |
 
 Client-side exception mapping for the MITM state — this is what makes it detectable before any request reaches the server:
@@ -235,7 +233,7 @@ Ktor 3.x on Java 21, distroless image. All config from Secret Manager, never bak
 8. Require hardware-enforced generated EC P-256 signing key, SIGN-only purpose and SHA-256
    digest; reject `allApplications` in either authorization list.
 9. Verify proof of possession over the challenge with the attested public key.
-10. Select tier 2 only for hardware-enforced locked + Verified boot; otherwise tier 1.
+10. Require hardware-enforced locked + Verified boot for every flag; otherwise reject with `device_integrity`. Success retains tier 2.
 11. Recheck expiry after verification, then atomically consume the challenge immediately
     before flag issuance. Concurrent valid submissions yield one winner. Invalid proofs do
     not consume a challenge. Store failure means 503; never use a per-instance production
@@ -293,62 +291,23 @@ Firebase Hosting rewrite `{"source":"/v1/**","run":{"serviceId":"crackme-l5","re
 
 ---
 
-## How it is solved (`SOLUTION.md`)
+## Solution status (`SOLUTION.md`)
 
-Pinning is implemented without a deliberate bypass. Flags arrive in a server response and are processed and stored by the genuine app after attestation. Runtime extraction can target network plaintext or local encryption/decryption. Flag 1 has a runtime extraction objective; Flag 2 is an open research objective with no promised solution.
-
-### Recon (shared)
-
-- Static: decompile with jadx. There are no embedded flag values. The `flag` response field and storage code reveal the provisioning and persistence flow. Recover the endpoint (`crackme.lorenzos.com/v1/...`), the challenge→attest→flag protocol, the OkHttp `CertificatePinner`, and the `network_security_config` system trust anchors. Distinguish certificate pinning from platform trust validation.
-- Dynamic: a stock AVD is useless — it has no real attestation keybox, so it fails hardware policy. You need a **physical GMS-certified device**, and for anything involving Frida, a **rooted** one (Magisk).
-
-### Flag 1 — read the response on a rooted device
-
-The server for Flag 1 does not care about boot state, so a rooted device can qualify provided the full certificate, revocation, identity, freshness and possession policies pass. The network controls are certificate pinning plus platform trust validation. Two runtime routes:
-
-- **Observe network plaintext.** Instrument the genuine app after TLS decryption, or
-  bypass certificate pinning and ensure the proxy certificate also passes platform trust.
-  A user CA is excluded by the configured trust anchors. A system-trusted proxy CA can
-  satisfy platform trust, but cannot satisfy the configured pins without a runtime bypass.
-- **Observe flag processing or storage.** Instrument parsing or the encryption/decryption
-  boundary. The app legitimately handles plaintext before encryption and after decryption;
-  extraction does not require exporting the Android Keystore key.
-
-For Flag 1, the real device attests the genuine app for a fresh server challenge. The
-solver observes the delivered flag in that process; copying its encrypted file alone
-is not sufficient.
-
-### Flag 2 — open research challenge
-
-No known bypass is currently demonstrated. Keep certificate validation, revocation,
-freshness, app identity, boot-state policy and TLS pinning intact. Do not distribute or
-require compromised credentials as the intended solution.
-
-Investigate time-of-check to time-of-use boundaries: key creation → server verification →
-flag delivery → later local decryption. A fresh proof is not continuous process integrity.
-A candidate exploit must show an actual state/access change and plaintext extraction;
-merely delaying a request or describing a race is insufficient.
-
-Also investigate receiving the flag while locked, then gaining runtime access later.
-Record whether app data and the storage key survive the transition. Bootloader unlocking
-can wipe data and keys; do not assume ciphertext and decryption capability survive. A
-legitimate cached flag is not new attestation, and offline reads must not report fresh integrity.
-
-For each experiment record device/OS, initial and final boot state, timing, key and data
-survival, server verdict and extraction result. Document unsuccessful experiments too.
-`SOLUTION.md` must distinguish demonstrated Flag 1 extraction from Flag 2 hypotheses.
-A missing Flag 2 solution is acceptable for release; lack of compatibility/security testing is not.
+See [SOLUTION.md](SOLUTION.md). The former unlocked-device tier-one Frida route is
+retired by the mandatory boot gate. No release extraction bypass is demonstrated.
+Research must preserve all checks and demonstrate actual plaintext extraction; runtime
+compromise or later storage access are hypotheses, not completed solutions.
 
 ---
 
 ## Verification
 
-1. **Server tests** start with signed synthetic chains under test-only roots. Add recorded real-device chains as integration fixtures before release: a genuine `TrustedEnvironment` chain, a StrongBox chain, a `Software`/emulator chain (must fail hardware policy), a repackaged-app chain (must fail app identity), a replayed nonce (must fail atomic consumption), an expired challenge, a tampered HMAC, and a chain whose `verifiedBootState` is `Unverified` (Flag 1 only, no Flag 2).
+1. **Server tests** start with signed synthetic chains under test-only roots. Add recorded real-device chains as integration fixtures before release: a genuine `TrustedEnvironment` chain, a StrongBox chain, a `Software`/emulator chain (must fail hardware policy), a repackaged-app chain (must fail app identity), a replayed nonce (must fail atomic consumption), an expired challenge, a tampered HMAC, and a chain whose `verifiedBootState` is `Unverified` (must reject without issuing any flag).
 2. **Local end-to-end**: run the Ktor server locally, point a debug variant at it, confirm the full round trip on a physical GMS device. An emulator must be verified to fail hardware policy — that is a test, not a bug.
 3. **Pinning proved**: a proxy with a user CA must fail platform trust; a system-trusted proxy CA must still fail certificate pinning. Repeat failures beyond two attempts and confirm there is no downgrade. With a runtime pinning bypass, a system-trusted proxy CA may succeed; a user-only CA still needs a trust bypass.
 4. **Anti-relay audit**: `aapt dump badging` and a manifest diff on the release APK to confirm zero exported components beyond `MainActivity`, no intent filters beyond MAIN/LAUNCHER, `allowBackup=false`, `debuggable` absent.
-5. **Flag lifecycle**: inspect the shipped APK for embedded flag values or bundled encrypted flags; the `flag` JSON key is allowed. After attestation, verify encrypted records survive process restart and decrypt correctly, IVs differ across writes, tampering fails authentication, and missing keys require re-attestation. Inspect app files, logs, caches and backup configuration for plaintext leakage. Demonstrate runtime extraction at the response or crypto boundary.
-6. **Flag 1 demonstrated; Flag 2 investigated:** document runtime extraction for Flag 1, stock-device Flag 2 acceptance, rejection of revoked/suspended credentials, and timing/storage experiments. No successful Flag 2 bypass is required. Test status-feed outage/staleness, concurrent replay, invalid PoP without nonce consumption, and expiry during verification.
+5. **Flag lifecycle**: inspect the shipped APK for embedded flag values or bundled encrypted flags; the `flag` JSON key is allowed. After attestation, verify encrypted records survive process restart and decrypt correctly, IVs differ across writes, tampering fails authentication, and missing keys require re-attestation. Inspect app files, logs, caches and backup configuration for plaintext leakage. Record runtime extraction experiments at the response or crypto boundary without claiming a demonstrated bypass.
+6. **Device policy and extraction research:** document locked verified device acceptance, unlocked/non-verified rejection, rejection of revoked/suspended credentials, and timing/storage experiments. No successful Flag 2 bypass is required. Test status-feed outage/staleness, concurrent replay, invalid PoP without nonce consumption, and expiry during verification.
 7. **Live monitoring**: a GitHub Actions cron in `mas-crackmes` doing a daily synthetic round trip (`/challenge` → malformed `/attest` → expect 403) that **opens an issue on failure**, so the community learns of an outage before the maintainer does.
 8. **Website build**: `mkdocs serve` in `mas-website` (with the sibling `mastg` checkout present, since `docs/hooks/combine-repos.py` runs at `on_pre_build`), then `npx markdownlint-cli2 --config .markdownlint.jsonc`.
 
@@ -386,3 +345,10 @@ ingress-aware distributed abuse limits, deployment setup, structured outcome log
 Firestore integration validation and physical-device client validation/recorded
 fixtures remain. No production flags, signing keys, trust configuration or cloud
 resources have been created. See `server/README.md` for the runnable local test milestone.
+
+## Release signing preparation
+
+The user authorized local release-key creation. See [RELEASE-SIGNING.md](RELEASE-SIGNING.md).
+Only the public certificate SHA-256 digest is backend configuration. Private signing
+material stays with custodians, outside Git and hosting. Two-custodian backup and final
+hostname decisions still precede publication.

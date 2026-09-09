@@ -10,9 +10,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class StatusTest {
+    @Test fun deviceIntegrityRejection() {
+        assertEquals(R.string.status_device_integrity,
+            Status.forOutcome(AttestOutcome.Rejected("device_integrity")))
+    }
+
     @Test fun serverCodes() {
         assertEquals(R.string.status_tier2, Status.forOutcome(AttestOutcome.Accepted(2, ByteArray(1))))
-        assertEquals(R.string.status_tier1, Status.forOutcome(AttestOutcome.Accepted(1, ByteArray(1))))
+        assertEquals(R.string.status_invalid, Status.forOutcome(AttestOutcome.Accepted(1, ByteArray(1))))
         assertEquals(R.string.status_app_integrity, Status.forOutcome(AttestOutcome.Rejected("app_integrity")))
         assertEquals(R.string.status_no_hardware, Status.forOutcome(AttestOutcome.Rejected("no_hardware_attestation")))
         assertEquals(R.string.status_expired, Status.forOutcome(AttestOutcome.Rejected("challenge_expired")))

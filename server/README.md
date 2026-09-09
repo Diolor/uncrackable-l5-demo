@@ -25,7 +25,7 @@ are recorded in Gradle lockfiles. Build downloads require network access once.
   Missing, expired, malformed or unavailable status data prevents flag issuance with HTTP 503.
 - Certificate time, challenge binding and proof of possession precede atomic replay
   consumption. Expiry is rechecked before and after the store operation.
-- Only locked + Verified hardware boot evidence earns tier 2.
+- Every flag requires locked + Verified hardware boot evidence. Otherwise return 403 `device_integrity`; never fall back to tier 1.
 - HTTP bodies are bounded during reading, responses are not cacheable, and errors
   exclude proof material and flags. Logging of request/response bodies is not installed.
 

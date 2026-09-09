@@ -15,8 +15,9 @@ import javax.net.ssl.SSLPeerUnverifiedException
  */
 object Status {
     fun forOutcome(outcome: AttestOutcome): Int = when (outcome) {
-        is AttestOutcome.Accepted -> if (outcome.tier == 2) R.string.status_tier2 else R.string.status_tier1
+        is AttestOutcome.Accepted -> if (outcome.tier == 2) R.string.status_tier2 else R.string.status_invalid
         is AttestOutcome.Rejected -> when (outcome.code) {
+            "device_integrity" -> R.string.status_device_integrity
             "app_integrity" -> R.string.status_app_integrity
             "no_hardware_attestation" -> R.string.status_no_hardware
             "challenge_expired", "challenge_replayed" -> R.string.status_expired

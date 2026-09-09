@@ -13,3 +13,5 @@
 -dontwarn org.bouncycastle.**
 -dontwarn org.conscrypt.**
 -dontwarn org.openjsse.**
+# OkHttp JVM's optional build-time API compatibility annotation has no runtime behavior.
+-dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement

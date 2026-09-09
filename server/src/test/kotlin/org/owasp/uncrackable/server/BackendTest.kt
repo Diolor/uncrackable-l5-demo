@@ -69,12 +69,35 @@ private class Fixture {
 }
 
 class BackendTest {
-    @Test fun `valid signed chains issue the correct tiers`() {
+    @Test fun `locked verified chains issue tier two`() {
         val f = Fixture()
-        assertEquals(1, f.service.attest(f.request(1)).tier)
         val result = f.service.attest(f.request(2))
         assertEquals(2, result.tier)
         assertEquals("synthetic-tier-two", result.flag)
+    }
+    @Test fun `every unlocked or non verified boot state rejects without consumption`() {
+        for (locked in listOf(false, true)) for (state in VerifiedBootState.entries) {
+            if (locked && state == VerifiedBootState.VERIFIED) continue
+            val f = Fixture()
+            val r = f.request { it.copy(hardwareEnforced = it.hardwareEnforced.copy(
+                rootOfTrust = RootOfTrust(ByteString.copyFrom(ByteArray(32)), locked, state))) }
+            assertEquals("device_integrity", assertFailsWith<Rejected> { f.service.attest(r) }.code)
+            assertTrue(f.replay.ids.isEmpty())
+        }
+    }
+    @Test fun `software boot evidence cannot replace hardware root of trust`() {
+        val f = Fixture()
+        val r = f.request { it.copy(
+            softwareEnforced = it.softwareEnforced.copy(rootOfTrust = it.hardwareEnforced.rootOfTrust),
+            hardwareEnforced = it.hardwareEnforced.copy(rootOfTrust = null)) }
+        assertFailsWith<Rejected> { f.service.attest(r) }
+        assertTrue(f.replay.ids.isEmpty())
+    }
+    @Test fun `service refuses legacy tier one even if verifier regresses`() {
+        val f = Fixture()
+        val service = AttestationService(f.challenges, { _, _ -> 1 }, f.replay, "one", "two")
+        assertEquals("device_integrity", assertFailsWith<Rejected> { service.attest(f.request()) }.code)
+        assertTrue(f.replay.ids.isEmpty())
     }
     @Test fun `StrongBox is accepted`() {
         val f = Fixture()
@@ -232,6 +255,20 @@ class BackendTest {
         assertEquals(HttpStatusCode.BadRequest, bad.status)
         val large = client.post("/v1/attest") { contentType(ContentType.Application.Json); setBody("x".repeat(41000)) }
         assertEquals(HttpStatusCode.PayloadTooLarge, large.status)
+    }
+
+    @Test fun `unlocked hardware request returns forbidden without any flag`() = testApplication {
+        val f = Fixture()
+        application { crackme(f.service) }
+        val r = f.request(1)
+        val body = buildJsonObject {
+            put("challenge", r.challenge); put("pop", r.pop)
+            putJsonArray("chain") { r.chain.forEach { add(it) } }
+        }.toString()
+        val response = client.post("/v1/attest") { contentType(ContentType.Application.Json); setBody(body) }
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertEquals("""{"error":"device_integrity"}""", response.bodyAsText())
+        assertTrue(f.replay.ids.isEmpty())
     }
 
     @Test fun `status snapshot lifetime follows remaining origin lifetime, capped at five minutes`() {

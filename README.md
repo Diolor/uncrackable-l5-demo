@@ -4,9 +4,10 @@ A planned network-backed Android crackme. Flags are provisioned after server-sid
 hardware attestation; no flag payload is embedded in the shipped APK. TLS always
 fails closed. Downloaded flags will be encrypted locally with Android Keystore.
 
-Flag 1 targets runtime extraction. Flag 2 is an open research challenge with no
-known demonstrated bypass under the documented assumptions. Revocation checking
-is required for both tiers. There is no planted TLS downgrade or revocation hole.
+Every flag requires hardware-enforced locked and verified boot, alongside app identity,
+freshness, possession and revocation checks. The weaker tier-one fallback is retired;
+success retains `tier:2`. No release extraction bypass is demonstrated.
+See [solution status](SOLUTION.md) and [release signing](RELEASE-SIGNING.md).
 
 Read [the design plan](UnCrackable-L5-Plan.md) and [repository guidance](AGENTS.md).
 

@@ -13,11 +13,15 @@ import java.time.Clock
 /** Explicit temporary demo entry point; production MainKt and release identity remain unchanged. */
 fun main() {
     val env = System.getenv()
-    require(env["DEMO_MODE"] == "render-debug") { "DEMO_MODE must be render-debug" }
+    val appPackage = when (env["DEMO_MODE"]) {
+        "render-debug" -> "org.owasp.mastg.uncrackable5.debug"
+        "render-release" -> "org.owasp.mastg.uncrackable5"
+        else -> error("DEMO_MODE must be render-debug or render-release")
+    }
     require(listOf("FLAG_TIER1", "FLAG_TIER2").all { env[it]?.startsWith("DEMO-") == true }) {
         "Demo flags must start with DEMO-"
     }
-    // Reuse strict secret/root validation. Only this separate launcher selects debug identity.
+    // Reuse strict secret/root validation. This separate launcher selects one explicit demo app identity.
     val config = RuntimeConfig.load(env + mapOf(
         "GOOGLE_CLOUD_PROJECT" to "uncrackable-l5-demo",
         "APP_PACKAGE" to "org.owasp.mastg.uncrackable5",
@@ -25,7 +29,7 @@ fun main() {
     val store = PostgresDemoStore.fromUrl(requireNotNull(env["DEMO_DATABASE_URL"]) { "Missing DEMO_DATABASE_URL" })
     store.initialize()
     val clock = Clock.systemUTC()
-    val verifier = AndroidVerifier(config.anchors, "org.owasp.mastg.uncrackable5.debug", config.signer,
+    val verifier = AndroidVerifier(config.anchors, appPackage, config.signer,
         clock, Revocations(clock, GoogleStatusFetcher()))
     val loggedVerifier = AttestationEvidenceVerifier { request, challenge ->
         try {

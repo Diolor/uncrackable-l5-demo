@@ -37,7 +37,8 @@ These properties are the crackme. A change that violates one silently ruins it.
    expected signer set under the documented platform and attestation trust assumptions.
 6. **Revocation is mandatory for both tiers.** Check the Google attestation status feed,
    reject every listed serial, and fail closed when no fresh valid snapshot is available.
-7. **Flag 2 is open research.** No demonstrated bypass is required for release. Investigate
+7. **Every flag requires hardware-enforced locked + Verified boot.** No tier-one fallback.
+8. **Flag extraction is open research.** No demonstrated bypass is required for release. Investigate
    attestation-to-use timing and post-attestation storage access without planting a weakness.
    Never advertise a proof of uncrackability or promise a leaked-keybox solution.
 

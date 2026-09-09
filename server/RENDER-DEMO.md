@@ -69,3 +69,16 @@ This records a successful debug-device demo, not release-signing validation,
 negative proxy/pinning tests, a captured-proof replay test against the hosted
 endpoint, or a flag extraction solve. Cloudflare and custom-domain setup remain
 the next phase. Auto-deploy is disabled; documentation commits do not redeploy.
+
+## Prepared policy and release identity update
+
+The updated source rejects unlocked or non-VERIFIED hardware boot evidence with
+HTTP 403 `device_integrity`, without consuming the challenge or issuing either flag.
+The legacy tier-one fallback is retired; successful responses retain tier 2.
+The historical deployed debug test above predates this update.
+
+The launcher now also supports `DEMO_MODE=render-release`, selecting the release
+package with its separately configured signer digest. See
+[release signing](../RELEASE-SIGNING.md) for local custody and the rollout procedure.
+The keystore and passwords must never be sent to Render. A source/build check is
+not evidence that the hosted service has been upgraded or a release device test passed.

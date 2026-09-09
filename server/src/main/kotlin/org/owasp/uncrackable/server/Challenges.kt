@@ -54,12 +54,12 @@ class AttestationService(
     fun attest(request: AttestRequest): FlagResponse {
         val bytes = challenges.verify(request.challenge)
         val tier = verifier.verify(request, bytes)
-        check(tier == 1 || tier == 2)
+        if (tier != 2) throw Rejected("device_integrity")
         challenges.verify(request.challenge) // Verification may have taken the request past its deadline.
         val consumed = try { replay.consume(challenges.id(bytes), challenges.expiresAt(bytes)) }
             catch (_: Exception) { throw Unavailable() }
         if (!consumed) throw Rejected("challenge_replayed")
         challenges.verify(request.challenge) // A slow replay store must not permit expired issuance either.
-        return FlagResponse(tier, if (tier == 2) tier2 else tier1, if (tier == 1) "device_integrity" else null)
+        return FlagResponse(2, tier2)
     }
 }

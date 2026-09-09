@@ -9,7 +9,10 @@ plugins {
 // -PcrackmeBaseUrl=... for local integration builds. Debug builds may use http://
 // because the debug network_security_config permits cleartext; release never does.
 val baseUrl = (findProperty("crackmeBaseUrl") as String?) ?: "https://crackme.lorenzos.com"
-val releaseBaseUrl = "https://crackme.lorenzos.com"
+val releaseBaseUrl = (findProperty("crackmeReleaseBaseUrl") as String?) ?: "https://crackme.lorenzos.com"
+require(Regex("https://[A-Za-z0-9.-]+(?::[0-9]+)?").matches(releaseBaseUrl)) {
+    "Release URL must be an HTTPS origin without a path, credentials, query or fragment"
+}
 
 android {
     namespace = "org.owasp.mastg.uncrackable5"
@@ -70,8 +73,8 @@ android {
 }
 
 dependencies {
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("com.squareup.okhttp3:okhttp-jvm:5.5.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     testImplementation(kotlin("test-junit"))
     testImplementation("junit:junit:4.13.2")
 }

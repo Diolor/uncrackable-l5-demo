@@ -67,7 +67,7 @@ class Backend(baseUrl: String, private val attestation: Attestation) {
             return when (response.code) {
                 200 -> {
                     val parsed = decode(FlagResponse.serializer(), text)
-                    if (parsed.tier != 1 && parsed.tier != 2) throw ProtocolException("tier")
+                    if (parsed.tier != 2) throw ProtocolException("tier")
                     AttestOutcome.Accepted(parsed.tier, parsed.flag.encodeToByteArray())
                 }
                 403 -> AttestOutcome.Rejected(decode(ErrorResponse.serializer(), text).error)

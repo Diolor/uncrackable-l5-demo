@@ -28,7 +28,7 @@ class FlagRecord(val version: Int, val tier: Int, val iv: ByteArray, val ciphert
 
         /** Returns null for anything that is not a well-formed record; callers discard such files. */
         fun decode(bytes: ByteArray): FlagRecord? {
-            if (bytes.size < 3 || bytes.size > MAX_SIZE) return null
+            if (bytes.size !in 3..MAX_SIZE) return null
             val version = bytes[0].toInt() and 0xff
             val tier = bytes[1].toInt() and 0xff
             val ivLength = bytes[2].toInt() and 0xff

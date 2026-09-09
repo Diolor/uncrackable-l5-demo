@@ -44,8 +44,8 @@ client; release builds are `RESTRICTED_TLS` only and cannot dial plaintext at al
 local HTTP server exercises attestation and storage but not pinning. Pinning is verified
 against the deployed TLS endpoint with the release build. A debug build attests its own
 package name and debug signer, so the local server must be configured with those values.
-An emulator has no real attestation keybox and must be rejected with
-`no_hardware_attestation`; a physical GMS-certified device is required for acceptance.
+A standard emulator must not receive a flag. Record its observed failure rather than
+assuming an exact error code; local key generation or certificate trust may fail first.
 
 ## Verifying the pins
 
@@ -56,3 +56,7 @@ done
 ```
 
 The output must match `Pins.ROOT_SPKI_SHA256` in order R1, R2, R3, R4, X1, X2.
+
+Release signing and the temporary Render URL build are documented in
+[RELEASE-SIGNING.md](../RELEASE-SIGNING.md). Every successful attestation now requires
+a locked, verified bootloader. Legacy tier-one responses are rejected by the client.

@@ -40,6 +40,10 @@ class AndroidVerifier(
                 app != null && app.packages.size == 1 && app.packages.single().name == packageName &&
                     app.signatures == setOf(signer)
             },
+            AttributeConstraint.STRICT("Device integrity", true) { description ->
+                val boot = description.hardwareEnforced.rootOfTrust
+                boot != null && boot.deviceLocked && boot.verifiedBootState == VerifiedBootState.VERIFIED
+            },
             AttributeConstraint.STRICT("Signing key", true) { description ->
                 val auth = description.hardwareEnforced
                 auth.purposes == setOf(BigInteger.valueOf(2)) && // KeyMint SIGN
@@ -101,10 +105,11 @@ class AndroidVerifier(
                 } catch (_: Exception) { throw Rejected("attestation_invalid") }
                 // A long verification must not outlive revocation freshness.
                 rejectListed(chain, revocations.current())
-                return if (result.deviceLocked && result.verifiedBootState == VerifiedBootState.VERIFIED) 2 else 1
+                return 2 // Legacy response number; there is no weaker tier-one fallback.
             }
             is VerificationResult.ConstraintViolation -> throw Rejected(when (result.constraintLabel) {
                 "App identity" -> "app_integrity"
+                "Device integrity" -> "device_integrity"
                 "Security level" -> "no_hardware_attestation"
                 else -> "attestation_invalid"
             })
