@@ -1,119 +1,99 @@
 # Backend
 
-## Run validation
+Cloudflare Worker at `https://crackme.lorentzos.com` (Workers Free plan). One Worker handles
+the protocol; one Durable Object holds the replay table, the global request budget and the
+revocation snapshot.
 
-Requires Java 21; the checksum-pinned Gradle wrapper downloads build dependencies.
-
-```sh
-./gradlew :server:test
+```text
+src/worker.ts        routes, body limits, challenge issue/verify, flag response
+src/state.ts         Durable Object: replay table, request budget, revocation snapshot with alarm refresh
+src/challenges.ts    challenge format: 1 | epochSeconds(8) | nonce(32) | HMAC-SHA256[0..16)
+src/revocations.ts   Google attestation status feed parsing and snapshot lifetime
+src/config.ts        startup validation; refuses to serve on missing or malformed values
+src/verifier/        attestation verifier: strict DER, X.509 path building, KeyDescription, policy
+roots/               Google's published attestation roots, bundled at build time
+test/protocol.test.ts   end-to-end tests inside workerd (vitest)
+test/parity/            verifier regression corpus
 ```
 
-Ktor's test host runs `/v1/challenge`, `/v1/attest` and `/v1/health` through the real
-verifier adapter with synthetic signed chains, plus the recorded real-device chain in
-[`fixtures/`](../fixtures/README.md). The tests require no credentials, device, live
-status feed or production secret. Dependency versions are recorded in Gradle lockfiles.
-The optional live Postgres concurrency test runs only when `DEMO_DATABASE_URL` is set.
-
-## Enforced boundaries
-
-- Canonical 57-byte HMAC-authenticated challenges expire at 120 seconds.
-- Google's pinned Android verifier handles certificate chains and attestation parsing.
-- The adapter requires hardware security, package/signer identity and P-256 signing properties.
-- Revocation snapshots reject every listed serial, including SUSPENDED. A snapshot is
-  reused for at most five minutes and never past the origin's remaining `max-age`
-  (its `max-age` minus any CDN `Age`). Google serves the feed with a 24-hour `max-age`
-  through a cache, so a copy that is hours old is still valid by the origin's policy.
-  Missing, expired, malformed or unavailable status data prevents flag issuance with HTTP 503.
-- Certificate time, challenge binding and proof of possession precede atomic replay
-  consumption. Expiry is rechecked before and after the store operation.
-- Every flag requires locked + Verified hardware boot evidence. Otherwise the server
-  returns 403 `device_integrity`; there is no tier-one fallback.
-- HTTP bodies are bounded during reading, responses are not cacheable, and errors
-  exclude proof material and flags. Request and response bodies are never logged.
-
-`crackme(service)` is the injectable application factory. Two launchers compose it:
-
-| Launcher | Replay store | Used by |
-| --- | --- | --- |
-| `RenderDemoMainKt` | Postgres, insert-on-conflict | The hosted deployment, see [DEPLOYMENT.md](DEPLOYMENT.md) |
-| `MainKt` | Firestore, create-if-absent | Cloud Run alternative, `server/Dockerfile` |
-
-The only in-memory replay implementation is in test sources.
-
-## Local device integration
-
-`LocalMain.kt` (test sources only) runs the production verifier, revocation cache and
-challenge code on loopback with an in-memory replay store, a random per-run HMAC key
-and synthetic flags. It accepts the debug client's package and signer. The Google
-attestation roots it loads by default are in [`roots/`](roots/README.md); verify their
-fingerprints before use.
+## Commands
 
 ```sh
-SIGNER=$(keytool -list -v -keystore ~/.android/debug.keystore -storepass android \
-  | awk '/SHA256:/ {gsub(":","",$2); print tolower($2)}')
-LOCAL_APP_SIGNER_SHA256=$SIGNER LOCAL_RECORD_DIR=fixtures/local ./gradlew :server:runLocal
-adb reverse tcp:8080 tcp:8080
-./gradlew :app:installDebug -PcrackmeBaseUrl=http://127.0.0.1:8080
+npm install
+npm run typecheck
+npm test            # protocol tests in workerd
+npm run parity      # verifier verdicts against the frozen corpus and recorded fixtures
+npm run deploy      # custom domain and Durable Object migration are in wrangler.jsonc
 ```
-
-`LOCAL_RECORD_DIR` writes every received `/v1/attest` body (chain, challenge, proof) as a
-JSON file so real-device chains can be turned into committed test fixtures. Outcomes and
-rejection codes are printed; proof material is not. The launcher is never part of the
-runtime distribution or container.
 
 ## Configuration
 
-Inject these as environment variables from the host's secret store. Never put secret
-values in a Docker build argument, image, shell history or Git.
+| Name | Kind | Value |
+| --- | --- | --- |
+| `CHALLENGE_HMAC_KEY` | secret | base64, at least 32 bytes: `wrangler secret put CHALLENGE_HMAC_KEY < keyfile` |
+| `FLAG_TIER2` | secret | the flag |
+| `APP_PACKAGE` | var | `org.owasp.mastg.uncrackable5` (`.debug` for a debug deployment) |
+| `APP_SIGNER_SHA256` | var | `../release/signer-sha256.txt` |
+| `ATTESTATION_ROOTS` | env, tests only | PEM bundle overriding `roots/` |
 
-| Variable | Required format |
-| --- | --- |
-| `CHALLENGE_HMAC_KEY` | Standard Base64 encoding of at least 32 random bytes |
-| `FLAG_TIER1`, `FLAG_TIER2` | Nonblank distinct flags; `FLAG_TIER1` is reserved and never issued |
-| `APP_PACKAGE` | `org.owasp.mastg.uncrackable5` (Firestore launcher) |
-| `DEMO_MODE` | `render-release` or `render-debug` (Render launcher; selects the package) |
-| `APP_SIGNER_SHA256` | Exactly 64 hexadecimal characters, no separators |
-| `ATTESTATION_ROOTS` | Explicit PEM bundle of self-signed CA certificates |
-| `DEMO_DATABASE_URL` | Postgres URL over TLS (Render launcher) |
-| `GOOGLE_CLOUD_PROJECT` | Firestore project ID (Firestore launcher) |
-| `PORT` | Optional listen port |
+Local development reads `.dev.vars` (ignored by Git). Every response carries
+`Cache-Control: no-store`; the flag, challenge and chain are never logged.
 
-No trust roots, signer or flag defaults exist. Operators must verify the provenance
-of the configured Android attestation roots; PEM validation does not establish that
-Google owns a root. Configuration errors name only the setting, never its value.
+## Zone controls set by hand
 
-### Firestore launcher notes
+The wrangler token cannot edit these, so they are set once in the dashboard:
 
-Firestore uses the project's `(default)` database and `used_challenges` collection.
-Each accepted proof calls document `create` with the SHA-256 challenge digest as ID
-and a Timestamp `expireAt`. Only `ALREADY_EXISTS` means replay. A three-second wait
-bounds the caller; every other error or uncertain result fails closed with 503.
-A timed-out write can still commit, so clients must obtain a new challenge. TTL
-cleanup never controls challenge validity. Configure Native-mode Firestore in the
-service region, TTL on `expireAt`, deny-all client rules, and runtime IAM access to
-data. The production launcher rejects `FIRESTORE_EMULATOR_HOST`.
+1. WAF rate limiting rule: `http.host eq "crackme.lorentzos.com"`, 10 requests per 10 seconds
+   per IP, block for 10 seconds. The Durable Object still enforces 60 per minute globally.
+2. Certificate Transparency monitoring alerts. Universal SSL issues from Let's Encrypt or
+   Google Trust Services, both pinned by the APK. If an alert shows any other CA, toggle
+   Universal SSL off and on to force reissue; the APK needs no change.
+3. Keep the custom domain proxied.
 
-## Known limitations
+```sh
+echo | openssl s_client -connect crackme.lorentzos.com:443 -servername crackme.lorentzos.com -showcerts 2>/dev/null | grep -E "^ [0-9] s:|^   i:"
+```
 
-- Abuse limiting is a shared global request ceiling in the Render launcher, not an
-  ingress-aware per-IP policy. It deliberately ignores forwarded headers, which are
-  spoofable without a reviewed trusted-proxy boundary.
-- Structured outcome logging, monitoring and budget alerting are host-level concerns not
-  provided by this code.
-- Firestore concurrent-create behaviour is covered by unit tests of the adapter's result
-  mapping, not by tests against the live Google service.
+## Free-plan budgets
 
-## Trust and test limitations
+The Durable Object stores the revocation snapshot as one row (sorted serials joined by
+newlines) because the free plan meters SQLite rows read and written per day. The feed has
+about 1,700 serials; one row per serial cost thousands of writes per refresh and exhausted
+the daily budget. An unchanged feed now rewrites one row every few minutes, and each
+request reads one row. When the budget is exhausted the Worker fails closed with 503 until
+the daily reset at 00:00 UTC.
 
-The vendored verifier is pinned at `a48898a68337b920cbd368eab5824f696d7bbf3d`;
-see [provenance](../third_party/android-keyattestation/UPSTREAM.md). It has Android-
-specific chain validation, not arbitrary web PKI validation. Unknown authorization
-tags are rejected (including legacy allApplications). The adapter adds leaf
-validity checking and uses its own status loader because upstream filters REVOKED
-only. Upstream source is unchanged; test factories are a separate test artifact.
+## Verifier regression corpus
 
-Synthetic chains prove policy and protocol behaviour, not actual hardware identity.
-Real-device compatibility and the live revocation fetch were demonstrated with a
-OnePlus 9 Pro (Android 14, TEE, locked, verified boot): tier 2 accepted, replay and
-tampered proofs rejected, encrypted record written. Never trust the test root in a
-deployed service.
+`src/verifier/` is a port of the verdict-deciding parts of Google's
+[android-key-attestation](https://github.com/android/keyattestation) verifier. Its
+behaviour was pinned by running both implementations over the same cases; the Kotlin
+verdicts are frozen in `test/parity/expected.tsv` and `npm run parity` replays them:
+
+- `test/parity/corpus.jsonl`: 73 chains from Google's own test certificate factory.
+- `test/parity/cases.ts`: structural mutations built in TypeScript (malformed KeyDescription
+  encodings, tag classes, RootOfTrust and AttestationApplicationId variants, chain shapes,
+  distinguished-name canonicalisation, proof-of-possession encodings, serial forms, clock
+  edges) plus single-byte corruptions of the synthetic leaf.
+- Every recorded chain in `../fixtures/`: documented outcomes at capture time, and every
+  single-byte corruption must be rejected cleanly.
+
+Semantics pinned by cases that were not obvious from the reference:
+
+- Two error classes in the extension parser: a failed attribute conversion nulls that
+  attribute and a later constraint names it (`app_integrity` for a malformed
+  `attestationApplicationId`); structural failures abort the parse (`attestation_invalid`).
+- Explicit tagging only; duplicate tags, last wins. A critical attestation extension on the
+  leaf counts as missing.
+- Distinguished names compare like `X500Principal.equals`: RFC 2253 keyword attributes in
+  PrintableString or UTF8String are normalised, everything else (including `serialNumber`
+  and `title`) compares by exact DER bytes.
+- TBS and outer signature algorithm identifiers must agree. The chain's root is never
+  signature-checked, only matched against a configured anchor.
+- Intermediate expiry is ignored on factory-provisioned chains and enforced on remotely
+  provisioned ones; `notBefore` is always enforced; leaf validity is enforced by the server.
+- Serials are unpadded lowercase hex. Base64 follows `java.util.Base64`.
+
+One documented divergence: BER indefinite lengths inside the attestation extension are
+accepted by BouncyCastle and rejected by this port (`kd-indefinite-length-ber`). KeyMint
+emits DER, so no device is affected, and the divergence only ever rejects.

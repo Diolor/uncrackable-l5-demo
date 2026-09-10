@@ -1,8 +1,0 @@
-{
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "uncrackable-l5-spike",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-09-01",
-  "workers_dev": true,
-  "observability": { "enabled": true, "head_sampling_rate": 1 }
-}

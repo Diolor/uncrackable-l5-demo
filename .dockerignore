@@ -1,7 +1,0 @@
-**
-!server/
-!server/build/
-!server/build/install/
-!server/build/install/server/
-!server/build/install/server/lib/
-!server/build/install/server/lib/*.jar
