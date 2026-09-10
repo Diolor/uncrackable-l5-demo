@@ -53,7 +53,7 @@ or malformed, and every response carries `Cache-Control: no-store`.
 The wrangler OAuth token cannot edit WAF or notifications, so these are set once by hand:
 
 1. **Rate limiting rule** (Security → WAF → Rate limiting rules, one rule is free):
-   expression `http.host eq "crackme.lorentzos.com"`, 30 requests per 10 seconds per IP,
+   expression `http.host eq "crackme.lorentzos.com"`, 10 requests per 10 seconds per IP (deployed 2026-09-10),
    action Block for 10 seconds. The Durable Object still enforces the global 60 per minute.
 2. **Certificate Transparency Monitoring** (SSL/TLS → Edge Certificates): enable alerts.
    Universal SSL issues from Let's Encrypt or Google Trust Services, both pinned by the APK.
