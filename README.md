@@ -1,7 +1,6 @@
 # Android UnCrackable L5
 
-**Can you get the flag?** It is not in the APK. It never touches the wire in the clear.
-Nobody has extracted it yet.
+**Can you get the flag?**
 
 A network-backed Android crackme for the OWASP MASTG crackme catalogue. Unlike the
 earlier Android levels, **the flag is not inside the APK**. A backend issues it, over a
