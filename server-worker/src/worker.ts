@@ -33,10 +33,8 @@ export default {
       return error(500, "internal_error");
     }
   },
-  /** Keeps the revocation snapshot warm so the first solver of the day never waits on Google. */
-  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
-    await stateStub(env).revocations(Math.floor(Date.now() / 1000));
-  },
+  // No cron trigger: the Durable Object's own alarm keeps the revocation snapshot warm, and a
+  // request arriving with no snapshot refreshes it synchronously and re-arms the alarm.
 } satisfies ExportedHandler<Env>;
 
 async function handle(request: Request, env: Env): Promise<Response> {

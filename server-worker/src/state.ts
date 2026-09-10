@@ -3,6 +3,7 @@
  * revocation snapshot. Being single-threaded, every operation here is atomic by construction.
  */
 import { DurableObject } from "cloudflare:workers";
+import { hex } from "./verifier/der.ts";
 import { FEED_URL, MAX_FEED_BYTES, MAX_TTL_SECONDS, parseFeed, snapshotTtl } from "./revocations.ts";
 
 export const RATE_LIMIT_PER_MINUTE = 60;
@@ -67,11 +68,28 @@ export class State extends DurableObject {
   }
 
   private metaNumber(key: string): number | null {
-    const row = this.sql.exec<{ v: string }>("SELECT v FROM revocation_meta WHERE k = ?", key).toArray()[0];
-    return row ? Number(row.v) : null;
+    const v = this.metaString(key);
+    return v === null ? null : Number(v);
   }
 
-  /** Fetch the feed and replace the snapshot; leaves the old snapshot untouched on any failure. */
+  private metaString(key: string): string | null {
+    const row = this.sql.exec<{ v: string }>("SELECT v FROM revocation_meta WHERE k = ?", key).toArray()[0];
+    return row ? row.v : null;
+  }
+
+  private putMeta(key: string, value: string): void {
+    this.sql.exec("INSERT INTO revocation_meta(k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", key, value);
+  }
+
+  /**
+   * Fetch the feed and replace the snapshot; leaves the old snapshot untouched on any failure.
+   *
+   * The feed lists ~1700 serials and changes rarely, while the snapshot is refreshed every few
+   * minutes, so rewriting the table unconditionally cost ~3500 row writes per refresh and
+   * exhausted the account's daily storage-write budget. When the serial set is byte-identical to
+   * the stored one, only the freshness metadata is rewritten (two rows). The digest is compared
+   * together with the row count so a truncated table can never be mistaken for a current one.
+   */
   private async refresh(nowSeconds: number): Promise<void> {
     try {
       const response = await fetch(FEED_URL, { redirect: "manual", signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), headers: { "cache-control": "max-age=0" } });
@@ -84,12 +102,17 @@ export class State extends DurableObject {
       const expiresAt = nowSeconds + ttl;
       if (Math.floor(Date.now() / 1000) >= expiresAt) throw new Error("stale before use");
       const serials = parseFeed(text);
+      const digest = await serialsDigest(serials);
+      const unchanged = digest === this.metaString("serials_digest") && this.sql.exec<{ n: number }>("SELECT COUNT(*) AS n FROM revoked_serials").toArray()[0].n === serials.size;
       this.ctx.storage.transactionSync(() => {
-        this.sql.exec("DELETE FROM revoked_serials");
-        for (const s of serials) this.sql.exec("INSERT OR IGNORE INTO revoked_serials(serial) VALUES (?)", s);
-        this.sql.exec("INSERT INTO revocation_meta(k, v) VALUES ('expires_at', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", String(expiresAt));
-        this.sql.exec("INSERT INTO revocation_meta(k, v) VALUES ('fetched_at', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", String(nowSeconds));
-        this.sql.exec("INSERT INTO revocation_meta(k, v) VALUES ('entries', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", String(serials.size));
+        if (!unchanged) {
+          this.sql.exec("DELETE FROM revoked_serials");
+          for (const s of serials) this.sql.exec("INSERT OR IGNORE INTO revoked_serials(serial) VALUES (?)", s);
+          this.putMeta("serials_digest", digest);
+          this.putMeta("entries", String(serials.size));
+        }
+        this.putMeta("expires_at", String(expiresAt));
+        this.putMeta("fetched_at", String(nowSeconds));
       });
       const next = Math.max(nowSeconds + 60, expiresAt - REFRESH_MARGIN_SECONDS);
       await this.ctx.storage.setAlarm(next * 1000);
@@ -98,6 +121,12 @@ export class State extends DurableObject {
       await this.ctx.storage.setAlarm((nowSeconds + 60) * 1000);
     }
   }
+}
+
+/** SHA-256 over the sorted serials, so an unchanged feed is recognised without rewriting rows. */
+async function serialsDigest(serials: Set<string>): Promise<string> {
+  const canonical = [...serials].sort().join("\n");
+  return hex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical))));
 }
 
 async function boundedText(response: Response, max: number): Promise<string> {

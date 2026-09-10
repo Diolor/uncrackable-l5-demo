@@ -30,6 +30,15 @@ async function resetState(): Promise<void> {
     sql.exec("DELETE FROM used_challenges");
   });
 }
+async function meta() {
+  return await runInDurableObject(stub(), (instance) => {
+    const sql = (instance as unknown as { sql: SqlStorage }).sql;
+    const get = (k: string) => sql.exec<{ v: string }>("SELECT v FROM revocation_meta WHERE k = ?", k).toArray()[0]?.v ?? null;
+    // rowids are reassigned by a delete-and-reinsert, so they witness whether rows were rewritten.
+    const rowids = sql.exec<{ rowid: number }>("SELECT rowid FROM revoked_serials ORDER BY rowid").toArray().map((r) => r.rowid);
+    return { digest: get("serials_digest"), entries: get("entries"), expiresAt: get("expires_at"), fetchedAt: get("fetched_at"), rowids };
+  });
+}
 async function expireSnapshot(): Promise<void> {
   await runInDurableObject(stub(), (instance) => {
     (instance as unknown as { sql: SqlStorage }).sql.exec("UPDATE revocation_meta SET v = '0' WHERE k = 'expires_at'");
@@ -205,6 +214,33 @@ describe("protocol", () => {
     await expireSnapshot();
     feed({ "1": { status: "REVOKED" } });
     expect(await (await attest(await attestRequest())).json()).toEqual({ error: "attestation_invalid" });
+  });
+
+  it("unchanged feed refreshes freshness without rewriting the serial table", async () => {
+    feed({ CA11CAFE: { status: "SUSPENDED" }, "1": { status: "REVOKED" } });
+    expect((await attest(await attestRequest())).status).toBe(403);
+    const before = await meta();
+    await expireSnapshot();
+    feed({ CA11CAFE: { status: "SUSPENDED" }, "1": { status: "REVOKED" } });
+    expect((await attest(await attestRequest())).status).toBe(403);
+    const after = await meta();
+    expect(after.digest).toBe(before.digest);
+    expect(after.rowids).toEqual(before.rowids); // no delete-and-reinsert of the serials
+    expect(after.entries).toBe("2");
+    expect(Number(after.expiresAt)).toBeGreaterThan(0); // snapshot is fresh again
+    expect(Number(after.fetchedAt)).toBeGreaterThanOrEqual(Number(before.fetchedAt));
+  });
+
+  it("a truncated serial table is rebuilt even when the digest matches", async () => {
+    feed({ CA11CAFE: { status: "SUSPENDED" } });
+    expect((await attest(await attestRequest())).status).toBe(403);
+    await runInDurableObject(stub(), (instance) => {
+      (instance as unknown as { sql: SqlStorage }).sql.exec("DELETE FROM revoked_serials");
+    });
+    await expireSnapshot();
+    feed({ CA11CAFE: { status: "SUSPENDED" } });
+    const r = await attest(await attestRequest());
+    expect(await r.json()).toEqual({ error: "attestation_invalid" });
   });
 
   it("global budget allows sixty requests per minute", async () => {

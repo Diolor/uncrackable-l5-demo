@@ -12,6 +12,5 @@
   },
   "durable_objects": { "bindings": [{ "name": "STATE", "class_name": "State" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["State"] }],
-  "triggers": { "crons": ["*/5 * * * *"] },
   "routes": [{ "pattern": "crackme.lorentzos.com", "custom_domain": true }]
 }

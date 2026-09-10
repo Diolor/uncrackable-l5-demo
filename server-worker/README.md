@@ -8,8 +8,9 @@ verification policy are unchanged; the verifier's behaviour is pinned to the Kot
 ## Layout
 
 ```text
-src/worker.ts        routes, body limits, challenge issue/verify, flag response, cron refresh
-src/state.ts         single-instance Durable Object: replay table, request budget, revocation snapshot
+src/worker.ts        routes, body limits, challenge issue/verify, flag response
+src/state.ts         single-instance Durable Object: replay table, request budget, revocation snapshot,
+                     alarm-driven feed refresh (digest-gated: unchanged feeds rewrite no serial rows)
 src/challenges.ts    challenge format byte-identical to Challenges.kt
 src/revocations.ts   Google status feed parsing and snapshot lifetime rules
 src/config.ts        startup validation (RuntimeConfig.kt equivalent), software-root rejection
