@@ -1,7 +1,7 @@
 # Recorded attestation requests
 
 Real `/v1/attest` request bodies recorded from a physical device against a local Worker,
-with the metadata `npm run parity` needs to replay them:
+with the metadata `npm run corpus` needs to replay them:
 
 ```json
 { "meta": { "device", "packageName", "signerSha256", "recordedAt" },

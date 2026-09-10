@@ -1,4 +1,4 @@
-// Structural mutation catalogue for the parity harness. Every case is verified by both implementations.
+// Structural mutation catalogue for the corpus harness. Every case has a verdict frozen from the reference verifier.
 import {
   buildChain, toCase, keyDescription, hwList, swList, appId, rootOfTrust, attestationExt, basicConstraintsExt, name, ecKey, rsaKey, pop, sign,
   seq, set, octet, bool, utf8, printable, ctx, ctxPrimitive, int, enumerated, concat, tlv, b64, b64url, CHALLENGE, NOW, SIGNER, PACKAGE,

@@ -15,5 +15,5 @@
     "verbatimModuleSyntax": false
   },
   "include": ["src/**/*.ts", "test/*.test.ts", "worker-configuration.d.ts"],
-  "exclude": ["test/parity", "test/fixture-check.ts", "spike"]
+  "exclude": ["test/corpus", "test/fixture-check.ts", "spike"]
 }

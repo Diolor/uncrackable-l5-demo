@@ -1,9 +1,9 @@
 import { SELF, env, runInDurableObject } from "cloudflare:test";
 import { beforeAll, beforeEach, afterEach, describe, expect, it } from "vitest";
 import keys from "./fixtures/test-keys.json";
-import { buildChain, jwkKey, keyDescription, hwList, rootOfTrust, pop, bool, enumerated } from "./parity/synthetic.ts";
-import type { Built } from "./parity/synthetic.ts";
-import { b64 } from "./parity/der-writer.ts";
+import { buildChain, jwkKey, keyDescription, hwList, rootOfTrust, pop, bool, enumerated } from "./corpus/synthetic.ts";
+import type { Built } from "./corpus/synthetic.ts";
+import { b64 } from "./corpus/der-writer.ts";
 import { base64UrlDecode, base64UrlEncodeNoPad, base64Decode } from "../src/verifier/base64.ts";
 import type { State } from "../src/state.ts";
 

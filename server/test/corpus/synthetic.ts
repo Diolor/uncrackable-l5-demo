@@ -189,7 +189,7 @@ export interface ChainOpts {
   /** remote: root -> Droid CA2 -> Droid CA3 (rkp) -> attestation(O=TEE) -> leaf */
   remote?: boolean;
   remoteLevel?: "TEE" | "StrongBox";
-  /** Reference time for validity windows; defaults to the fixed parity clock. */
+  /** Reference time for validity windows; defaults to the fixed corpus clock. */
   nowMs?: number;
 }
 

@@ -42,7 +42,7 @@ scripts/    release-signing.py (local key custody and signed build)
 ```
 
 Never committed: keystore, `CHALLENGE_HMAC_KEY`, flags, hosting credentials, `.dev.vars`.
-Any change under `server/src/verifier/` must keep `npm run parity` green.
+Any change under `server/src/verifier/` must keep `npm run corpus` green.
 
 ## Conventions
 

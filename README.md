@@ -94,7 +94,7 @@ keystore, `CHALLENGE_HMAC_KEY`, flag values, hosting credentials.
 
 ```sh
 (cd android && ./gradlew :app:testDebugUnitTest :app:assembleRelease)   # Android SDK 36
-cd server && npm install && npm test && npm run parity   # Node 22+
+cd server && npm install && npm test && npm run corpus   # Node 22+
 npx markdownlint-cli2 --config .markdownlint.jsonc
 ```
 

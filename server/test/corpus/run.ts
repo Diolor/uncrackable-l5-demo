@@ -1,7 +1,7 @@
-// Verifier regression harness. Compares TypeScript verdicts with the verdicts the Kotlin reference
-// implementation (Google's android-key-attestation verifier) produced for the same cases, frozen in
-// expected.tsv, and checks every recorded device chain in ../../../fixtures.
-// Usage: node --experimental-strip-types test/parity/run.ts [--quick]
+// Verifier regression harness. Replays the verdicts frozen in expected.tsv (produced once by
+// Google's android-key-attestation reference verifier, which src/verifier/ ports) against the
+// TypeScript verifier, and checks every recorded device chain in ../../../fixtures.
+// Usage: node --experimental-strip-types test/corpus/run.ts [--quick]
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { AndroidVerifier, Rejected, parsePemCertificates } from "../../src/verifier/verifier.ts";
@@ -39,7 +39,7 @@ const fail = (msg: string) => {
   console.log("FAIL " + msg);
 };
 
-// 1. Synthetic cases against the frozen Kotlin verdicts.
+// 1. Synthetic cases against the frozen reference verdicts.
 const expected = new Map<string, string>();
 for (const line of readFileSync(here + "expected.tsv", "utf8").split("\n")) {
   if (!line.trim()) continue;
@@ -61,7 +61,7 @@ for (const c of synthetic) {
   if (c.id.startsWith("syn-leaf-")) {
     if (!CODES.has(got)) fail(`${c.id}: ${got}`);
   } else if (want === undefined) fail(`${c.id}: no frozen verdict`);
-  else if (got !== want) fail(`${c.id}: typescript=${got} kotlin=${want}`);
+  else if (got !== want) fail(`${c.id}: got ${got}, frozen ${want}`);
 }
 console.log(`synthetic: ${synthetic.length} cases`);
 

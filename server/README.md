@@ -13,7 +13,7 @@ src/config.ts        startup validation; refuses to serve on missing or malforme
 src/verifier/        attestation verifier: strict DER, X.509 path building, KeyDescription, policy
 roots/               Google's published attestation roots, bundled at build time
 test/protocol.test.ts   end-to-end tests inside workerd (vitest)
-test/parity/            verifier regression corpus
+test/corpus/            verifier regression corpus
 ```
 
 ## Commands
@@ -22,7 +22,7 @@ test/parity/            verifier regression corpus
 npm install
 npm run typecheck
 npm test            # protocol tests in workerd
-npm run parity      # verifier verdicts against the frozen corpus and recorded fixtures
+npm run corpus      # verifier verdicts against the frozen corpus and recorded fixtures
 npm run deploy      # custom domain and Durable Object migration are in wrangler.jsonc
 ```
 
@@ -67,11 +67,12 @@ the daily reset at 00:00 UTC.
 
 `src/verifier/` is a port of the verdict-deciding parts of Google's
 [android-key-attestation](https://github.com/android/keyattestation) verifier. Its
-behaviour was pinned by running both implementations over the same cases; the Kotlin
-verdicts are frozen in `test/parity/expected.tsv` and `npm run parity` replays them:
+behaviour was pinned once by running the reference verifier over the same cases; those
+verdicts are frozen in `test/corpus/expected.tsv` and `npm run corpus` replays them
+against the TypeScript port (no Kotlin is needed to run it):
 
-- `test/parity/corpus.jsonl`: 73 chains from Google's own test certificate factory.
-- `test/parity/cases.ts`: structural mutations built in TypeScript (malformed KeyDescription
+- `test/corpus/corpus.jsonl`: 73 chains from Google's own test certificate factory.
+- `test/corpus/cases.ts`: structural mutations built in TypeScript (malformed KeyDescription
   encodings, tag classes, RootOfTrust and AttestationApplicationId variants, chain shapes,
   distinguished-name canonicalisation, proof-of-possession encodings, serial forms, clock
   edges) plus single-byte corruptions of the synthetic leaf.
