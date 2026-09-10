@@ -24,14 +24,14 @@ It refuses to overwrite an existing key.
 python3 scripts/release-signing.py build
 ```
 
-Builds `app/build/outputs/apk/release/app-release.apk` for the origin configured in
-`app/build.gradle.kts`, passing passwords through the environment only. Verify before
+Builds `android/app/build/outputs/apk/release/app-release.apk` for the origin configured in
+`android/app/build.gradle.kts`, passing passwords through the environment only. Verify before
 publishing:
 
 ```sh
-apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
-aapt dump badging app/build/outputs/apk/release/app-release.apk | grep -E "^package|debuggable|uses-permission"
-shasum -a 256 app/build/outputs/apk/release/app-release.apk
+apksigner verify --print-certs android/app/build/outputs/apk/release/app-release.apk
+aapt dump badging android/app/build/outputs/apk/release/app-release.apk | grep -E "^package|debuggable|uses-permission"
+shasum -a 256 android/app/build/outputs/apk/release/app-release.apk
 ```
 
 Expect one signer whose digest equals `signer-sha256.txt`, package

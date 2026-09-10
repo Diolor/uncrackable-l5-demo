@@ -1,8 +1,8 @@
-.gradle/
-.kotlin/
+android/.gradle/
+android/.kotlin/
 **/build/
-.idea/
-local.properties
+android/.idea/
+android/local.properties
 *.jks
 *.keystore
 .DS_Store

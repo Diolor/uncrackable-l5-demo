@@ -34,7 +34,7 @@ deliberate. Companion to [OWASP/mastg#3953](https://github.com/OWASP/mastg/pull/
 ## Layout
 
 ```text
-app/        Kotlin Android client (Gradle module :app)
+android/    Kotlin Android client (Gradle project, module :app)
 server/     Cloudflare Worker (TypeScript), verifier, tests, regression corpus
 fixtures/   recorded attestation requests for the server tests
 release/    signed APK, public certificate, signer digest, signing procedure

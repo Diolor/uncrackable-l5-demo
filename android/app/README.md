@@ -44,7 +44,7 @@ pinning; verify pinning against the deployed origin.
 ## Verifying the pins
 
 ```sh
-for f in app/pins/*.pem; do
+for f in android/app/pins/*.pem; do
   openssl x509 -in "$f" -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64
 done
 ```

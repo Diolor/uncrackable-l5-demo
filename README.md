@@ -78,7 +78,7 @@ app that granularity would be a finding.
 
 | Path | Contents |
 | --- | --- |
-| [`app/`](app/README.md) | Kotlin Android client (Gradle module `:app`) |
+| [`android/`](android/app/README.md) | Kotlin Android client (Gradle project, module `:app`) |
 | [`server/`](server/README.md) | Cloudflare Workers backend (TypeScript) with the attestation verifier |
 | [`fixtures/`](fixtures/README.md) | Recorded device attestation requests used by the server tests |
 | [`release/`](release/README.md) | Signed APK, public signing certificate, signing procedure |
@@ -93,7 +93,7 @@ keystore, `CHALLENGE_HMAC_KEY`, flag values, hosting credentials.
 ## Build and test
 
 ```sh
-./gradlew :app:testDebugUnitTest :app:assembleRelease   # Android SDK 36
+(cd android && ./gradlew :app:testDebugUnitTest :app:assembleRelease)   # Android SDK 36
 cd server && npm install && npm test && npm run parity   # Node 22+
 npx markdownlint-cli2 --config .markdownlint.jsonc
 ```

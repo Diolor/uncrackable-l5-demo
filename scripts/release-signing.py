@@ -47,5 +47,5 @@ if sys.argv[1] == 'create':
     print('Public certificate SHA-256:', hashlib.sha256(der).hexdigest())
 else:
     env = dict(os.environ, **json.loads(CONFIG.read_text()))
-    run(str(ROOT / 'gradlew'), ':app:assembleRelease',
-        '--no-daemon', cwd=ROOT, env=env)
+    run(str(ROOT / 'android' / 'gradlew'), ':app:assembleRelease',
+        '--no-daemon', cwd=ROOT / 'android', env=env)
