@@ -18,7 +18,7 @@ Companion to the MASTG best practice on hardware-backed key attestation
 | | |
 | --- | --- |
 | APK | [`release/UnCrackable-Level5.apk`](release/UnCrackable-Level5.apk) |
-| APK SHA-256 | `3629bf9521c689eac32001a45f515237d84ad27a85aef935ea784acb3de7ae75` |
+| APK SHA-256 | `d76583e4980ea87f7fadd3633172866aad5a1830b5e5c3b02ad3b3a48c031ba3` |
 | Package | `org.owasp.mastg.uncrackable5`, versionName `1.0`, minSdk 28, targetSdk 36 |
 | Signer SHA-256 | [`release/signer-sha256.txt`](release/signer-sha256.txt) |
 | Backend | `https://crackme.lorentzos.com` |
