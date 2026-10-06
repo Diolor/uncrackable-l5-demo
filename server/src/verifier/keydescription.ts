@@ -50,6 +50,10 @@ export interface AuthorizationList {
   origin: Origin | null;
   rootOfTrust: RootOfTrust | null;
   attestationApplicationId: AttestationApplicationId | null;
+  /** Raw INTEGER values (YYYYMM or YYYYMMDD on real devices); interpreted only by server policy. */
+  osPatchLevel: bigint | null;
+  vendorPatchLevel: bigint | null;
+  bootPatchLevel: bigint | null;
 }
 
 export interface KeyDescription {
@@ -201,11 +205,15 @@ function parseAuthorizationList(t: Tlv, limits: InputLimits): AuthorizationList 
     Tag.USAGE_EXPIRE_DATE_TIME, Tag.USAGE_COUNT_LIMIT, Tag.USER_AUTH_TYPE, Tag.AUTH_TIMEOUT,
     Tag.CREATION_DATE_TIME, Tag.OS_VERSION,
   ]) parse(tag, toInt);
-  for (const tag of [Tag.OS_PATCH_LEVEL, Tag.VENDOR_PATCH_LEVEL, Tag.BOOT_PATCH_LEVEL]) {
+  const patchLevel = (tag: number): bigint | null => {
     const v = get(tag);
-    if (v !== undefined && !isUniversal(v, U.INTEGER, false)) throw new Error("Must be an ASN1Integer"); // check: fatal
-    if (v !== undefined) integerValue(v);
-  }
+    if (v === undefined) return null;
+    if (!isUniversal(v, U.INTEGER, false)) throw new Error("Must be an ASN1Integer"); // check: fatal
+    return integerValue(v);
+  };
+  const osPatchLevel = patchLevel(Tag.OS_PATCH_LEVEL);
+  const vendorPatchLevel = patchLevel(Tag.VENDOR_PATCH_LEVEL);
+  const bootPatchLevel = patchLevel(Tag.BOOT_PATCH_LEVEL);
   for (const tag of [
     Tag.ATTESTATION_ID_BRAND, Tag.ATTESTATION_ID_DEVICE, Tag.ATTESTATION_ID_PRODUCT, Tag.ATTESTATION_ID_SERIAL,
     Tag.ATTESTATION_ID_IMEI, Tag.ATTESTATION_ID_MEID, Tag.ATTESTATION_ID_MANUFACTURER, Tag.ATTESTATION_ID_MODEL,
@@ -227,6 +235,9 @@ function parseAuthorizationList(t: Tlv, limits: InputLimits): AuthorizationList 
     origin,
     rootOfTrust: parse(Tag.ROOT_OF_TRUST, toRootOfTrust),
     attestationApplicationId: parse(Tag.ATTESTATION_APPLICATION_ID, (v) => toAttestationApplicationId(v, limits)),
+    osPatchLevel,
+    vendorPatchLevel,
+    bootPatchLevel,
   };
 }
 

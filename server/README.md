@@ -76,8 +76,17 @@ against the TypeScript port (no Kotlin is needed to run it):
   encodings, tag classes, RootOfTrust and AttestationApplicationId variants, chain shapes,
   distinguished-name canonicalisation, proof-of-possession encodings, serial forms, clock
   edges) plus single-byte corruptions of the synthetic leaf.
-- Every recorded chain in `../fixtures/`: documented outcomes at capture time, and every
+- `test/corpus/policy.ts`: cases for the policy the reference never had (RKP-issued chains
+  only; OS, vendor and boot patch levels at most twelve months old), with verdicts in
+  `test/corpus/policy.tsv`.
+- Every recorded chain in `../fixtures/`: the outcome in its `meta.expected`, and every
   single-byte corruption must be rejected cleanly.
+
+The policy runs after every reference check, proof of possession included, so it can only
+turn a reference acceptance into `no_remote_provisioning` or `security_patch_outdated`.
+`policy.tsv` records those replaced `ok:2` verdicts next to the policy-only cases, and the
+runner refuses any entry that would replace a frozen rejection. `expected.tsv` stays as the
+reference produced it.
 
 Semantics pinned by cases that were not obvious from the reference:
 

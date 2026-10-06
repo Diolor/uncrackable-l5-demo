@@ -8,12 +8,14 @@ import { AndroidVerifier, Rejected, parsePemCertificates } from "../../src/verif
 import { base64UrlDecode } from "../../src/verifier/base64.ts";
 import { parseFeed } from "../../src/revocations.ts";
 import { structuralCases, byteMutations } from "./cases.ts";
+import { policyCases } from "./policy.ts";
 import type { Case } from "./synthetic.ts";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repo = fileURLToPath(new URL("../../../", import.meta.url));
 const quick = process.argv.includes("--quick");
-const CODES = new Set(["ok:2", "attestation_invalid", "app_integrity", "device_integrity", "no_hardware_attestation"]);
+const POLICY_CODES = new Set(["no_remote_provisioning", "security_patch_outdated"]);
+const CODES = new Set(["ok:2", "attestation_invalid", "app_integrity", "device_integrity", "no_hardware_attestation", ...POLICY_CODES]);
 
 async function verdict(c: Case): Promise<string> {
   try {
@@ -39,22 +41,35 @@ const fail = (msg: string) => {
   console.log("FAIL " + msg);
 };
 
-// 1. Synthetic cases against the frozen reference verdicts.
-const expected = new Map<string, string>();
-for (const line of readFileSync(here + "expected.tsv", "utf8").split("\n")) {
-  if (!line.trim()) continue;
-  const [id, code] = line.split("\t");
-  expected.set(id, code);
+// 1. Synthetic cases against the frozen reference verdicts. Server policy the reference never had
+// runs after every reference check, so it may only turn a frozen ok:2 into a policy rejection;
+// policy.tsv records those verdicts and the verdicts of the policy-only cases.
+const readTsv = (file: string) => {
+  const out = new Map<string, string>();
+  for (const line of readFileSync(here + file, "utf8").split("\n")) {
+    if (!line.trim()) continue;
+    const [id, code] = line.split("\t");
+    if (out.has(id)) throw new Error(`duplicate id ${id} in ${file}`);
+    out.set(id, code);
+  }
+  return out;
+};
+const expected = readTsv("expected.tsv");
+const policy = readTsv("policy.tsv");
+for (const [id, code] of policy) {
+  const frozen = expected.get(id);
+  if (frozen !== undefined && (frozen !== "ok:2" || !POLICY_CODES.has(code))) fail(`policy.tsv ${id}: ${code} may only replace a frozen ok:2`);
+  if (frozen === undefined && !id.startsWith("policy-")) fail(`policy.tsv ${id}: unknown case`);
 }
 const synthetic: Case[] = readFileSync(here + "corpus.jsonl", "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l));
 const structural = await structuralCases();
-synthetic.push(...structural);
+synthetic.push(...structural, ...(await policyCases()));
 synthetic.push(...byteMutations("syn-leaf", structural.find((c) => c.id === "syn-baseline")!, 0, quick ? 16 : 1));
 const seen = new Set<string>();
 for (const c of synthetic) {
   if (seen.has(c.id)) throw new Error("duplicate case id " + c.id);
   seen.add(c.id);
-  const want = expected.get(c.id);
+  const want = policy.get(c.id) ?? expected.get(c.id);
   const got = await verdict(c);
   // The synthetic leaf is re-signed with fresh keys on every run, so its byte mutations have no
   // stable frozen verdict; they must only produce a documented verdict, never an internal error.
@@ -63,9 +78,10 @@ for (const c of synthetic) {
   } else if (want === undefined) fail(`${c.id}: no frozen verdict`);
   else if (got !== want) fail(`${c.id}: got ${got}, frozen ${want}`);
 }
+for (const id of policy.keys()) if (!seen.has(id)) fail(`policy.tsv ${id}: no such case`);
 console.log(`synthetic: ${synthetic.length} cases`);
 
-// 2. Recorded device chains: documented outcomes at capture time, and every single-byte
+// 2. Recorded device chains: the outcome documented in meta.expected, and every single-byte
 // corruption of the chain must be rejected cleanly (never an internal error).
 const googleRoots = readFileSync(new URL("../../roots/google-attestation-roots.pem", import.meta.url), "utf8");
 const fixtureDir = repo + "fixtures/";
@@ -74,7 +90,7 @@ for (const file of readdirSync(fixtureDir).filter((f) => f.endsWith(".json"))) {
   const base: Case = { id: file, request: f.request, now: f.meta.recordedAt, packageName: f.meta.packageName, signer: f.meta.signerSha256, roots: googleRoots, serials: [] };
   const leafSerial = "1";
   const checks: Array<[Case, string]> = [
-    [base, "ok:2"],
+    [base, f.meta.expected],
     [{ ...base, packageName: "org.owasp.mastg.uncrackable5.other" }, "app_integrity"],
     [{ ...base, signer: "00".repeat(32) }, "app_integrity"],
     [{ ...base, now: new Date(Date.parse(f.meta.recordedAt) + 3_600_000).toISOString() }, "attestation_invalid"],

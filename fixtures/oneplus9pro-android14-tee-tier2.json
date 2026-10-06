@@ -3,7 +3,8 @@
   "device": "OnePlus 9 Pro (LE2123), Android 14, TEE, locked, verified boot",
   "packageName": "org.owasp.mastg.uncrackable5.debug",
   "signerSha256": "5bb26e313b60dcb38bf264e8e152111fc76ed51e12ec77d1073be3323beb53be",
-  "recordedAt": "2026-09-10T09:06:00Z"
+  "recordedAt": "2026-09-10T09:06:00Z",
+  "expected": "no_remote_provisioning"
  },
  "request": {
   "challenge": "AQAAAABqonL0tDNsIsqfXgHTVMEjCBGsl1mJAIghSlqilJjswZpW5F9ASsYIKppjFbWvuedVnJu_",

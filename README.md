@@ -5,7 +5,8 @@
 A network-backed Android crackme for the OWASP MASTG crackme catalogue. Unlike the
 earlier Android levels, **the flag is not inside the APK**. A backend issues it, over a
 pinned TLS channel, only to a request carrying a fresh hardware-attested proof from the
-genuine, correctly-signed build running on a locked device with verified boot. The client
+genuine, correctly-signed build running on a locked, recently patched device with verified
+boot and a remotely provisioned attestation key. The client
 stores the flag encrypted under a hardware-backed Android Keystore key. Extract the
 plaintext flag.
 
@@ -31,6 +32,9 @@ adb install release/UnCrackable-Level5.apk
 - Internet access. There is no offline mode.
 - A GMS-certified physical device with hardware key attestation (TEE or StrongBox). An
   emulator has no attestation keybox and is rejected.
+- Remote Key Provisioning (RKP): the attestation key must be certified by Google's RKP
+  servers, not a factory keybox. Devices launching with Android 13 or later have it.
+- A security update from the last twelve months on the OS, vendor and boot partitions.
 - A locked bootloader with verified boot. Receiving the flag on a stock device is a
   compatibility check, not a solve.
 
@@ -41,7 +45,8 @@ GET  /v1/challenge -> {"challenge":"<b64url 57B>","expiresIn":120}
 POST /v1/attest    <- {"challenge":..,"chain":[..],"pop":..}
                    -> 200 {"tier":2,"flag":".."}
                    -> 403 {"error":"device_integrity" | "app_integrity" |
-                            "no_hardware_attestation" | "challenge_expired" |
+                            "no_hardware_attestation" | "no_remote_provisioning" |
+                            "security_patch_outdated" | "challenge_expired" |
                             "challenge_replayed" | "attestation_invalid"}
                    -> 503 {"error":"verification_unavailable"}
 GET  /v1/health    -> {"status":"ok"}
@@ -53,8 +58,9 @@ GET  /v1/health    -> {"status":"ok"}
    proof of possession.
 3. The backend validates the chain against Google's attestation roots and status feed,
    requires hardware security levels, the exact package and signer, key properties, a
-   locked and verified boot state, and the proof of possession. Only then does it consume
-   the challenge and return the flag.
+   locked and verified boot state, the proof of possession, an RKP-issued chain and
+   patch levels no older than twelve months. Only then does it consume the challenge and
+   return the flag.
 4. The app encrypts the flag with AES-256-GCM under a persistent hardware-backed Keystore
    key and stores only the ciphertext. The UI only confirms acceptance.
 
@@ -72,6 +78,8 @@ app that granularity would be a finding.
   expected signer.
 - Any serial in Google's attestation status feed is rejected, and the backend fails
   closed without a fresh snapshot.
+- Factory keyboxes are not accepted, revoked or not: a leaked keybox stays usable until
+  Google lists it, so only remotely provisioned attestation keys count.
 - Attestation describes the state at key creation, not continuous process integrity.
   Runtime instrumentation of the genuine process on a device that still reports
   verified boot is the open research surface. See [SOLUTION.md](SOLUTION.md).

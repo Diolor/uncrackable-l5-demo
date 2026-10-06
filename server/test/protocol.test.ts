@@ -1,7 +1,7 @@
 import { SELF, env, runInDurableObject } from "cloudflare:test";
 import { beforeAll, beforeEach, afterEach, describe, expect, it } from "vitest";
 import keys from "./fixtures/test-keys.json";
-import { buildChain, jwkKey, keyDescription, hwList, rootOfTrust, pop, bool, enumerated } from "./corpus/synthetic.ts";
+import { buildChain, jwkKey, keyDescription, hwList, rootOfTrust, pop, bool, enumerated, ctx, int } from "./corpus/synthetic.ts";
 import type { Built } from "./corpus/synthetic.ts";
 import { b64 } from "./corpus/der-writer.ts";
 import { base64UrlDecode, base64UrlEncodeNoPad, base64Decode } from "../src/verifier/base64.ts";
@@ -51,11 +51,25 @@ async function challenge(): Promise<string> {
   return body.challenge;
 }
 
-async function attestRequest(opts: { kd?: (challengeBytes: Uint8Array) => Uint8Array; token?: string } = {}) {
+/** YYYYMM of the UTC month `monthsAgo` months before now; the Worker checks patch age on the real clock. */
+function patchMonth(monthsAgo: number): number {
+  const now = new Date();
+  const index = now.getUTCFullYear() * 12 + now.getUTCMonth() - monthsAgo;
+  return Math.floor(index / 12) * 100 + (index % 12) + 1;
+}
+
+/** hardwareEnforced list with OS, vendor and boot patch levels from `monthsAgo`. */
+function patchedHw(overrides: Record<number, Uint8Array | null> = {}, monthsAgo = 0): Uint8Array {
+  const month = patchMonth(monthsAgo);
+  return hwList({ 706: int(month), ...overrides }, [ctx(718, int(month * 100 + 1)), ctx(719, int(month * 100 + 1))]);
+}
+
+/** Remotely provisioned chain by default; `factory` builds a keybox-style chain instead. */
+async function attestRequest(opts: { kd?: (challengeBytes: Uint8Array) => Uint8Array; token?: string; factory?: boolean } = {}) {
   const token = opts.token ?? (await challenge());
   const bytes = base64UrlDecode(token);
-  const kd = opts.kd ? opts.kd(bytes) : keyDescription({ challenge: bytes });
-  const built = await buildChain({ kd, leafKey, nowMs: Date.now() }, shared);
+  const kd = opts.kd ? opts.kd(bytes) : keyDescription({ challenge: bytes, hw: patchedHw() });
+  const built = await buildChain({ kd, leafKey, nowMs: Date.now(), remote: !opts.factory }, shared);
   const signature = await pop(leafKey, bytes);
   return { challenge: token, chain: built.chain.map(b64), pop: b64(signature) };
 }
@@ -128,7 +142,7 @@ describe("protocol", () => {
 
   it("unlocked device is refused without consuming the challenge", async () => {
     feed();
-    const kd = (c: Uint8Array) => keyDescription({ challenge: c, hw: hwList({ 704: rootOfTrust({ locked: bool(false) }) }) });
+    const kd = (c: Uint8Array) => keyDescription({ challenge: c, hw: patchedHw({ 704: rootOfTrust({ locked: bool(false) }) }) });
     const token = await challenge();
     const bad = await attestRequest({ kd, token });
     const r = await attest(bad);
@@ -136,6 +150,26 @@ describe("protocol", () => {
     expect(await r.json()).toEqual({ error: "device_integrity" });
     const good = await attestRequest({ token });
     expect((await attest(good)).status).toBe(200);
+  });
+
+  it("factory-provisioned keybox chain is refused without consuming the challenge", async () => {
+    feed();
+    const token = await challenge();
+    const r = await attest(await attestRequest({ token, factory: true }));
+    expect(r.status).toBe(403);
+    expect(await r.json()).toEqual({ error: "no_remote_provisioning" });
+    expect((await attest(await attestRequest({ token }))).status).toBe(200);
+  });
+
+  it("security patch older than twelve months is refused without consuming the challenge", async () => {
+    feed();
+    const token = await challenge();
+    const stale = await attestRequest({ token, kd: (c) => keyDescription({ challenge: c, hw: patchedHw({}, 13) }) });
+    const r = await attest(stale);
+    expect(r.status).toBe(403);
+    expect(await r.json()).toEqual({ error: "security_patch_outdated" });
+    const oldest = await attestRequest({ token, kd: (c) => keyDescription({ challenge: c, hw: patchedHw({}, 12) }) });
+    expect((await attest(oldest)).status).toBe(200);
   });
 
   it("software security level maps to no_hardware_attestation", async () => {
@@ -238,7 +272,7 @@ describe("protocol", () => {
 
   it("response never contains the flag on rejection", async () => {
     feed();
-    const body = await attestRequest({ kd: (c) => keyDescription({ challenge: c, hw: hwList({ 704: rootOfTrust({ state: enumerated(2) }) }) }) });
+    const body = await attestRequest({ kd: (c) => keyDescription({ challenge: c, hw: patchedHw({ 704: rootOfTrust({ state: enumerated(2) }) }) }) });
     const text = await (await attest(body)).text();
     expect(text).not.toContain("synthetic-tier-two");
   });

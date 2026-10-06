@@ -21,7 +21,8 @@ deliberate. Companion to [OWASP/mastg#3953](https://github.com/OWASP/mastg/pull/
    possession.
 5. **App identity** via `attestationApplicationId`: one package, exact signer.
 6. **Revocation is mandatory.** Reject every listed serial; fail closed without a fresh feed.
-7. **Every flag requires locked plus verified boot.** No lower tier.
+7. **Every flag requires locked plus verified boot**, an RKP-issued attestation chain (no
+   factory keyboxes) and OS, vendor and boot patch levels at most 12 months old. No lower tier.
 8. **Extraction is open research.** Never advertise uncrackability, never plant a weakness.
 
 ## Immutable values (attested)

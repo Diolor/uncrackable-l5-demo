@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">UnCrackable L5</string>
-    <string name="brief">This app has no flag inside it. The flag is issued by a server, over a pinned TLS channel, only to a fresh hardware-attested proof from the genuine, correctly-signed build. Every flag requires a locked bootloader with verified boot. Extract the flag.</string>
+    <string name="brief">This app has no flag inside it. The flag is issued by a server, over a pinned TLS channel, only to a fresh hardware-attested proof from the genuine, correctly-signed build. Every flag requires a locked bootloader with verified boot, a security update from the last twelve months and a remotely provisioned attestation key. Extract the flag.</string>
     <string name="attest">ATTEST</string>
 
     <!-- Status line. The flag is never rendered in any state. -->
@@ -15,6 +15,8 @@
     <string name="status_invalid">Attestation could not be verified.</string>
     <string name="status_unavailable">Attestation service is unavailable. Try again later.</string>
     <string name="status_device_integrity">Device bootloader is not locked and verified.</string>
+    <string name="status_security_patch">Device security update is older than twelve months.</string>
+    <string name="status_no_remote_provisioning">Device attestation key is not remotely provisioned by Google.</string>
     <string name="status_tier2">Accepted — device and app fully verified.</string>
     <string name="status_storage_failed">The flag could not be stored securely. Try again.</string>
 </resources>

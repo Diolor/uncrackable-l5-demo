@@ -20,6 +20,9 @@ class StatusTest {
         assertEquals(R.string.status_invalid, Status.forOutcome(AttestOutcome.Accepted(1, ByteArray(1))))
         assertEquals(R.string.status_app_integrity, Status.forOutcome(AttestOutcome.Rejected("app_integrity")))
         assertEquals(R.string.status_no_hardware, Status.forOutcome(AttestOutcome.Rejected("no_hardware_attestation")))
+        assertEquals(R.string.status_security_patch, Status.forOutcome(AttestOutcome.Rejected("security_patch_outdated")))
+        assertEquals(R.string.status_no_remote_provisioning,
+            Status.forOutcome(AttestOutcome.Rejected("no_remote_provisioning")))
         assertEquals(R.string.status_expired, Status.forOutcome(AttestOutcome.Rejected("challenge_expired")))
         assertEquals(R.string.status_expired, Status.forOutcome(AttestOutcome.Rejected("challenge_replayed")))
         assertEquals(R.string.status_invalid, Status.forOutcome(AttestOutcome.Rejected("attestation_invalid")))

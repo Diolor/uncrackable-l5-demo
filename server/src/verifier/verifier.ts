@@ -1,14 +1,16 @@
 /**
  * Port of the reference AndroidVerifier (Google android-key-attestation plus server policy): request-level validation, root completion from trusted
  * anchors, revocation, Google's verifier with the crackme's constraints, proof of possession,
- * and leaf validity. Returns the protocol tier (always 2) or throws Rejected(code).
+ * and leaf validity, followed by policy the reference never had: remotely provisioned
+ * attestation keys only and a recent security patch. Returns the protocol tier (always 2) or
+ * throws Rejected(code).
  */
 import { OID, parseCertificate, isSelfIssued, namesEqual, verifyCertificate, verifySignature } from "./x509.ts";
 import type { Certificate, PublicKeyInfo } from "./x509.ts";
 import { base64Decode } from "./base64.ts";
-import { verifyChain, MATCHES_CERTIFICATE, VerifiedBootState } from "./path.ts";
+import { verifyChain, MATCHES_CERTIFICATE, VerifiedBootState, CertPath, ProvisioningMethod } from "./path.ts";
 import type { Constraint } from "./path.ts";
-import type { KeyDescription } from "./keydescription.ts";
+import type { KeyDescription, AuthorizationList } from "./keydescription.ts";
 import { DerError } from "./der.ts";
 
 export class Rejected extends Error {
@@ -84,6 +86,32 @@ function constraintsFor(packageName: string, signerHex: string): Constraint[] {
   ];
 }
 
+/** Oldest accepted security patch, in calendar months before the verification month. */
+const MAX_PATCH_AGE_MONTHS = 12;
+
+/** Month index of a YYYYMM or YYYYMMDD patch level, or null when malformed (upstream PatchLevel.from). */
+function patchMonth(level: bigint | null): number | null {
+  if (level === null) return null;
+  const digits = level.toString();
+  if (!/^\d{6}(\d{2})?$/.test(digits)) return null;
+  const month = Number(digits.slice(4, 6));
+  if (month < 1 || month > 12) return null;
+  return Number(digits.slice(0, 4)) * 12 + month - 1;
+}
+
+/**
+ * OS, vendor and boot patch levels must all be hardware-enforced, well formed, at most
+ * MAX_PATCH_AGE_MONTHS old, and at most one month ahead (vendors ship the next bulletin early).
+ */
+function patchesCurrent(hw: AuthorizationList, nowMs: number): boolean {
+  const now = new Date(nowMs);
+  const current = now.getUTCFullYear() * 12 + now.getUTCMonth();
+  return [hw.osPatchLevel, hw.vendorPatchLevel, hw.bootPatchLevel].every((level) => {
+    const month = patchMonth(level);
+    return month !== null && month >= current - MAX_PATCH_AGE_MONTHS && month <= current + 1;
+  });
+}
+
 export class AndroidVerifier {
   private readonly constraints: Constraint[];
   private readonly config: AndroidVerifierConfig;
@@ -145,6 +173,10 @@ export class AndroidVerifier {
           throw new Rejected("attestation_invalid");
         }
         if (!(await verifySignature(key, OID.ecdsaSha256, signature, challenge))) throw new Rejected("attestation_invalid");
+        // Policy beyond the reference verifier, applied only to an otherwise valid attestation.
+        // Factory keyboxes leak and stay usable until Google lists them; RKP keys are short-lived.
+        if (new CertPath(chain).provisioningMethod() !== ProvisioningMethod.REMOTELY_PROVISIONED) throw new Rejected("no_remote_provisioning");
+        if (!patchesCurrent(result.keyDescription.hardwareEnforced, nowMs)) throw new Rejected("security_patch_outdated");
         this.rejectListed(chain, revokedSerials);
         return 2;
       }

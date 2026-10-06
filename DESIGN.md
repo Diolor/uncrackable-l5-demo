@@ -26,7 +26,24 @@ and later local use is the research surface; no check is weakened to make it exp
 fail closed on every attempt and never degrade after failures.
 
 **Mandatory device gate.** Every flag requires hardware-enforced `deviceLocked == true` and
-`verifiedBootState == VERIFIED`. Responses carry `tier: 2`; there is no lower tier.
+`verifiedBootState == VERIFIED`, a remotely provisioned attestation key, and a security patch
+from the last twelve months. Responses carry `tier: 2`; there is no lower tier.
+
+**Remotely provisioned keys only.** A factory keybox is a long-lived attestation key injected
+at manufacture. Keyboxes leak, and a leaked one lets a rooted device sign an attestation that
+claims any boot state, patch level and app identity until Google lists its serial in the
+status feed. Remote Key Provisioning (RKP, mandatory for devices launching with Android 13)
+gives each device short-lived attestation certificates from Google's servers for keys that
+never leave its secure hardware. The server accepts only chains whose top intermediate is
+Google's RKP CA (`CN=Droid CA2, O=Google LLC`), the test Google's verifier uses for
+`ProvisioningMethod.REMOTELY_PROVISIONED`. Devices without RKP cannot receive a flag.
+Revocation still applies to every certificate in an RKP chain.
+
+**Recent patch.** The hardware-enforced OS, vendor and boot patch levels must each be at most
+twelve calendar months old, the bar Play Integrity's strong verdict uses, and at most one
+month ahead, since vendors sometimes ship the next bulletin early. A missing, malformed or
+software-enforced-only value fails. Like the boot state, it is what the device reported when
+the key was created.
 
 **Diagnostic errors.** Each rejection names the control that fired. An opaque 403 would
 leave a solver unable to tell repackaging from boot state, which is what L5 exists to teach.
@@ -73,6 +90,8 @@ redirects, no cookies, no cache, no logging in any build type, bounded response 
 | `Signing authority cannot be trusted.` | `SSLPeerUnverifiedException` (pin), `SSLHandshakeException` or `CertificateException` (trust) |
 | `App signature is not verified.` | `app_integrity` |
 | `This device has no hardware-backed attestation.` | `no_hardware_attestation` |
+| `Device attestation key is not remotely provisioned by Google.` | `no_remote_provisioning` |
+| `Device security update is older than twelve months.` | `security_patch_outdated` |
 | `Attestation expired. Try again.` | `challenge_expired`, `challenge_replayed` |
 | `Attestation could not be verified.` | `attestation_invalid`, protocol violation, local key failure |
 | `Attestation service is unavailable. Try again later.` | 429 or 503 |
@@ -103,9 +122,10 @@ leaf validity; reject any serial in Google's status feed (`REVOKED` and `SUSPEND
 failing closed when no snapshot fresher than five minutes exists; require the attested
 challenge to equal the server challenge; require hardware attestation and key security
 levels; require exactly one package entry with exactly the configured signer; require a
-hardware-enforced generated P-256 SIGN-only key with SHA-256; verify the proof of possession;
-require locked plus verified boot; recheck expiry; consume atomically; issue the flag. Invalid
-proofs never consume a challenge. A store failure is a 503.
+hardware-enforced generated P-256 SIGN-only key with SHA-256; require locked plus verified
+boot; verify the proof of possession; then, on an otherwise valid attestation, require an
+RKP-issued chain and current patch levels; recheck expiry; consume atomically; issue the flag.
+Invalid proofs never consume a challenge. A store failure is a 503.
 
 **Diagnostic errors are deliberate.** Accepted consequences: no uniform latency floor and no
 per-response reference id. The flag, challenge and chain are never logged.

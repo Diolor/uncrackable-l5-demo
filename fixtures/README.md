@@ -4,7 +4,7 @@ Real `/v1/attest` request bodies recorded from a physical device against a local
 with the metadata `npm run corpus` needs to replay them:
 
 ```json
-{ "meta": { "device", "packageName", "signerSha256", "recordedAt" },
+{ "meta": { "device", "packageName", "signerSha256", "recordedAt", "expected" },
   "request": { "challenge", "chain", "pop" } }
 ```
 
@@ -15,7 +15,7 @@ HMAC key. Record fixtures with a throwaway debug signing key, never a personal o
 
 | File | Device | Outcome |
 | --- | --- | --- |
-| `oneplus9pro-android14-tee-tier2.json` | OnePlus 9 Pro (LE2123), Android 14, TEE, locked, verified boot; debug package | Accepted, tier 2 |
+| `oneplus9pro-android14-tee-tier2.json` | OnePlus 9 Pro (LE2123), Android 14, TEE, locked, verified boot, factory keybox, patch 2025-04; debug package | `no_remote_provisioning` (tier 2 when recorded, before the RKP and patch policy) |
 
 To record a new fixture, run the debug build against `wrangler dev` (see
 [`app/README.md`](../app/README.md)) behind a small proxy that writes each `/v1/attest`

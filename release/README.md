@@ -37,4 +37,5 @@ shasum -a 256 android/app/build/outputs/apk/release/app-release.apk
 Expect one signer whose digest equals `signer-sha256.txt`, package
 `org.owasp.mastg.uncrackable5` with SDK 28 to 36, no `debuggable` flag and only the
 `INTERNET` permission. Then copy the APK here, update the SHA-256 in the README and
-confirm acceptance on a locked physical device.
+confirm acceptance on a locked physical device with RKP and a security update from the
+last twelve months.
