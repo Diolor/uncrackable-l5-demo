@@ -1,11 +1,14 @@
 # Solution status
 
-No release-build flag extraction has been demonstrated. Every flag requires
-hardware-enforced locked and VERIFIED boot, a remotely provisioned attestation key and
-OS, vendor and boot patch levels from the last twelve months, with all certificate,
-revocation, app identity, freshness, possession and replay checks passing. An unlocked or
-rooted device that no longer reports verified boot is therefore not a route to the flag,
-and neither is a leaked factory keybox.
+Solved. Two researchers reported a solve of the release build on 2026-10-07. A write-up
+is in progress and will be added here. Independent solves by other routes are still
+welcome.
+
+Every flag requires hardware-enforced locked and VERIFIED boot, a remotely provisioned
+attestation key and OS, vendor and boot patch levels from the last twelve months, with
+all certificate, revocation, app identity, freshness, possession and replay checks
+passing. An unlocked or rooted device that no longer reports verified boot is therefore
+not a route to the flag, and neither is a leaked factory keybox.
 
 A stock device receiving and encrypting the flag is a compatibility test, not a solve.
 Debug builds permit debugging and are not evidence of release resistance.

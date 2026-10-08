@@ -94,7 +94,7 @@ app that granularity would be a finding.
 | [`release/`](release/README.md) | Signed APK, public signing certificate, signing procedure |
 | [`scripts/release-signing.py`](scripts/release-signing.py) | Local key custody and signed build |
 | [`DESIGN.md`](DESIGN.md) | Why each control is the way it is |
-| [`SOLUTION.md`](SOLUTION.md) | What counts as a solve |
+| [`SOLUTION.md`](SOLUTION.md) | Solve status (solved 2026-10-07) and what counts as a solve |
 
 Committed: root pins, backend origin, package name, public signing certificate and its
 digest, Google attestation roots, recorded fixtures. Never committed: the signing
